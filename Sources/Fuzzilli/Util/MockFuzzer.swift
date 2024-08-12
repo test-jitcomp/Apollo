@@ -179,6 +179,12 @@ public func makeMockFuzzer(config maybeConfiguration: Configuration? = nil, engi
         (CombineMutator(),                  1),
     ])
 
+    // the JIT mutators to use for this fuzzing engine.
+    let jitMutators = WeightedList<JITMutator>([
+        (SubRtJITMutator(),                 1),
+        (CallJITCompMutator(),              1),
+    ])
+
     let engine = maybeEngine ?? MutationEngine(numConsecutiveMutations: 5)
 
     // The evaluator to score produced samples.
@@ -207,6 +213,7 @@ public func makeMockFuzzer(config maybeConfiguration: Configuration? = nil, engi
                         scriptRunner: runner,
                         engine: engine,
                         mutators: mutators,
+                        jitMutators: jitMutators,
                         codeGenerators: codeGenerators,
                         programTemplates: programTemplates,
                         evaluator: evaluator,

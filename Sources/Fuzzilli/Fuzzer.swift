@@ -48,6 +48,9 @@ public class Fuzzer {
     /// The mutators used by the engine.
     public let mutators: WeightedList<Mutator>
 
+    /// The JIT mutators used by the engine.
+    public let jitMutators: WeightedList<JITMutator>
+
     /// The evaluator to score generated programs.
     public let evaluator: ProgramEvaluator
 
@@ -155,7 +158,8 @@ public class Fuzzer {
 
     /// Constructs a new fuzzer instance with the provided components.
     public init(
-        configuration: Configuration, scriptRunner: ScriptRunner, engine: FuzzEngine, mutators: WeightedList<Mutator>,
+        configuration: Configuration, scriptRunner: ScriptRunner, engine: FuzzEngine,
+        mutators: WeightedList<Mutator>, jitMutators: WeightedList<JITMutator>,
         codeGenerators: WeightedList<CodeGenerator>, programTemplates: WeightedList<ProgramTemplate>, evaluator: ProgramEvaluator,
         environment: Environment, lifter: Lifter, corpus: Corpus, minimizer: Minimizer, queue: DispatchQueue? = nil
     ) {
@@ -168,6 +172,7 @@ public class Fuzzer {
         self.timers = Timers(queue: self.queue)
         self.engine = engine
         self.mutators = mutators
+        self.jitMutators = jitMutators
         self.codeGenerators = codeGenerators
         self.programTemplates = programTemplates
         self.evaluator = evaluator
@@ -488,7 +493,7 @@ public class Fuzzer {
         repeat {
             attempt += 1
             if attempt > maxAttempts {
-                logger.warning("Sample did not converage after \(maxAttempts) attempts. Discarding it")
+                logger.warning("Sample did not converge after \(maxAttempts) attempts. Discarding it")
                 return false
             }
 

@@ -29,7 +29,7 @@ Options:
     --profile=name               : Select one of several preconfigured profiles.
                                    Available profiles: \(profiles.keys).
     --jobs=n                     : Total number of fuzzing jobs. This will start a main instance and n-1 worker instances.
-    --engine=name                : The fuzzing engine to use. Available engines: "mutation" (default), "hybrid", "multi".
+    --engine=name                : The fuzzing engine to use. Available engines: "mutation" (default), "jitmut", "hybrid", "multi".
                                    Only the mutation engine should be regarded stable at this point.
     --corpus=name                : The corpus scheduler to use. Available schedulers: "basic" (default), "markov"
     --logLevel=level             : The log level to use. Valid values: "verbose", "info", "warning", "error", "fatal" (default: "info").
@@ -172,7 +172,7 @@ guard let logLevel = logLevelByName[logLevelName] else {
     configError("Invalid log level \(logLevelName)")
 }
 
-let validEngines = ["mutation", "hybrid", "multi"]
+let validEngines = ["mutation", "jitmut", "hybrid", "multi"]
 guard validEngines.contains(engineName) else {
     configError("--engine must be one of \(validEngines)")
 }
@@ -398,6 +398,14 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         configError("List of enabled mutators is empty. There needs to be at least one mutator available.")
     }
 
+    // These mutators are specifically designed around JIT compilers
+    let jitMutators = WeightedList<JITMutator>([
+        (SubRtJITMutator(),                 3),
+        (CallJITCompMutator(),              3),
+        (CallDeOptMutator(),                3),
+        (CallReCompMutator(),               3),
+    ])
+
     // Engines to execute programs.
     let engine: FuzzEngine
     switch engineName {
@@ -417,6 +425,8 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         // For the same reason, we also use a relatively larger iterationsPerEngine value, so that
         // the MutationEngine can already find most "low-hanging fruits" in its first run.
         engine = MultiEngine(engines: engines, initialActive: mutationEngine, iterationsPerEngine: 10000)
+    case "jitmut":
+        engine = JITMutEngine(numConsecutiveMutations: consecutiveMutations - 1, numConsecutiveJITMutations: 1)
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
     }
@@ -473,6 +483,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
                   scriptRunner: runner,
                   engine: engine,
                   mutators: mutators,
+                  jitMutators: jitMutators,
                   codeGenerators: codeGenerators,
                   programTemplates: programTemplates,
                   evaluator: evaluator,
