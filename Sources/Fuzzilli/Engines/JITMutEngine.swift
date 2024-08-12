@@ -59,7 +59,7 @@ public class JITMutEngine: FuzzEngine {
             // TODO: factor out code shared with the MutationEngine/HybridEngine?
             var mutator: Mutator 
             if i < numConsecutiveMutations {
-                mutator = fuzzer.mutators.randomElement()              
+                mutator = fuzzer.mutators.randomElement()
             } else {
                 mutator = fuzzer.jitMutators.randomElement()
             }
@@ -76,7 +76,11 @@ public class JITMutEngine: FuzzEngine {
                 } else {
                     // Try a different mutator.
                     mutator.failedToGenerate()
-                    mutator = fuzzer.mutators.randomElement()
+                    if i < numConsecutiveMutations {
+                        mutator = fuzzer.mutators.randomElement()
+                    } else {
+                        mutator = fuzzer.jitMutators.randomElement()
+                    }
                 }
             }
 
