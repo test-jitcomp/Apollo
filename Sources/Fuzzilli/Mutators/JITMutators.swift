@@ -171,7 +171,7 @@ public class CallDeOptMutator: CallJITCompMutator {
 
             case let op as CallMethod:
                 let m = op.methodName
-                let obj = i.input(0)
+                let obj = i.input(0) // TODO: It's safe to use another object with the same type?
                 let argTypes = i.inputs[1..<i.numInputs].map({
                     b.type(of: $0)
                 })
