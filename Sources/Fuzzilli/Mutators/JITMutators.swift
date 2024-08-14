@@ -38,29 +38,53 @@ extension ProgramBuilder {
     }
 }
 
+/// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
+/// TODO: Remove duplicate code among this file, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
+/// TODO: Add some more complicated mutators involving multiple rounds of JIT compilation, de-optimization, and re-compilation
+
 /// A JIT mutator is basically an instruction mutator
-public class JITMutator: BaseInstructionMutator {}
+public class JITMutator: BaseInstructionMutator {
+    var contextAnalyzer = ContextAnalyzer()
 
-/// A JIT mutator that inserts a loop into a subroutine, trying to make the subroutine under insertion JIT compiled.
-public class SubRtJITMutator: JITMutator {
-    private var contextAnalyzer = ContextAnalyzer()
-
-    public override func beginMutation(of program: Program) {
+    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
-        contextAnalyzer.analyze(instr)
-        return !contextAnalyzer.context.contains(.subroutine)
+    public override func canMutate(_ i: Instruction) -> Bool {
+        contextAnalyzer.analyze(i)
+        return (
+            // It's wired that some instructions are not in the .javascript context
+            // (removing this condition check may cause assertion failures...)
+            contextAnalyzer.context.contains(.javascript) &&
+            // Basically, we cannot apply mutation inside a loop, otherwise,
+            // adding new loops may cause the program to run overly long.
+            !contextAnalyzer.context.contains(.loop)
+        )
     }
 
-    public override func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
-        // TODO: In (and only in) JSC, loop iterations counts 1/15 of method calls.
-        builder.buildPrefix()
-        builder.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT * 15) {
-            builder.build(n: defaultSmallCodeBlockSize, by: .generating)
+    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+        print(b.dumpCurrentProgram())
+    }
+}
+
+/// A JIT mutator that inserts a loop into a subroutine, trying to make the subroutine under insertion JIT compiled.
+public class SubRtJITMutator: JITMutator {
+
+    public override func canMutate(_ i: Instruction) -> Bool {
+        return (
+            super.canMutate(i) &&
+            !contextAnalyzer.context.contains(.subroutine)
+        )
+    }
+
+    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        b.adopt(i)
+        b.buildPrefix()
+        // In (and only in) JSC, loop iterations counts 1/15 of method calls.
+        // TODO: Change the iteration account according to the profile
+        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT * 15) {
+            b.build(n: defaultSmallCodeBlockSize, by: .generating)
         }
-        builder.adopt(instr)
     }
 }
 
@@ -76,24 +100,26 @@ public class SubRtJITMutator: JITMutator {
 ///
 ///     for (...) { ...; foo(a, b); ...; } // enable JIT compilation
 ///
-/// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
-/// TODO: Remove duplicate code among this Mutator, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
+/// The JIT compilation should be guaranteed; however, this depends on the loop trop.
 public class CallJITCompMutator: JITMutator {
 
-    override public func canMutate(_ instr: Instruction) -> Bool {
-        // TODO: Support more types of calls
-        return instr.isCall && (instr.op is CallMethod || instr.op is CallFunction)
+    override public func canMutate(_ i: Instruction) -> Bool {
+        return (
+            super.canMutate(i) &&
+            i.isCall &&
+            (i.op is CallMethod || i.op is CallFunction) // TODO: Remove this to support all types of calls
+        )
     }
 
-    public override func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
-        // Wrap instr with a loop such that the called function/method can be JITted
-        builder.buildPrefix()
+    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        // Wrap the instruction with a loop such that the called function/method can be JITted
+        b.buildPrefix()
         // TODO: Randomly pick an int variable as the loop trip
-        builder.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) { _ in
-            builder.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
+        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) { _ in
+            b.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
             // TODO: Drop guarding to avoid being guarded by try-catch after lifting?
-            builder.adopt(instr)
-            builder.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
+            b.adopt(i)
+            b.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
         }
     }
 }
@@ -112,38 +138,37 @@ public class CallJITCompMutator: JITMutator {
 ///     ...;
 ///     foo(c, d);                         // trigger de-optimization
 ///
-/// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
-/// TODO: Remove duplicate code among this Mutator, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
+/// The de-optimization is not guaranteed, but possibly to occur.
 public class CallDeOptMutator: CallJITCompMutator {
 
-    public override func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
-        // Wrap instr by a loop to enable JIT compilation
-        super.mutate(instr, builder)
+    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        // Wrap the instruction by a loop to enable JIT compilation
+        super.mutate(i, b)
 
         // Create some new variables for future use
-        builder.buildPrefix();
-        builder.build(n: defaultSmallCodeBlockSize)
+        b.buildPrefix();
+        b.build(n: defaultSmallCodeBlockSize)
 
         // Change the argument of the called method/function, trying to trigger a de-optimization
         // Shall not use ProgramBuilder.randomArgument() since this API tries to find variables that
         // match the argument type of the called function/method. This contradicts our de-opt goal.
-        switch (instr.op) {
+        switch (i.op) {
             case let op as CallFunction:
-                let f = builder.adopt(instr.input(0))
-                let argTypes = instr.inputs[1..<instr.numInputs].map({
-                    builder.type(of: $0)
+                let f = b.adopt(i.input(0))
+                let argTypes = i.inputs[1..<i.numInputs].map({
+                    b.type(of: $0)
                 })
-                let args = builder.randomVariables(preferablyNotOfTypes: argTypes)
-                builder.callFunction(f, withArgs: args, guard: op.isGuarded)
+                let args = b.randomVariables(preferablyNotOfTypes: argTypes)
+                b.callFunction(f, withArgs: args, guard: op.isGuarded)
 
             case let op as CallMethod:
                 let m = op.methodName
-                let obj = builder.adopt(instr.input(0))
-                let argTypes = instr.inputs[1..<instr.numInputs].map({
-                    builder.type(of: $0)
+                let obj = b.adopt(i.input(0))
+                let argTypes = i.inputs[1..<i.numInputs].map({
+                    b.type(of: $0)
                 })
-                let args = builder.randomVariables(preferablyNotOfTypes: argTypes)
-                builder.callMethod(m, on: obj, withArgs: args, guard: op.isGuarded)
+                let args = b.randomVariables(preferablyNotOfTypes: argTypes)
+                b.callMethod(m, on: obj, withArgs: args, guard: op.isGuarded)
 
             default: // TODO: Support more instructions like CallFunctionWithSpread. See JsOperations.swift.
                 preconditionFailure("Unsupported type of function/method call: ")
@@ -167,37 +192,36 @@ public class CallDeOptMutator: CallJITCompMutator {
 ///     ...;
 ///     for (...) { ...; foo(c, d); ...; }   // try enabling re-compilation
 ///
-/// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
-/// TODO: Remove duplicate code among this Mutator, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
+/// Both de-optimization and re-compilation are not guaranteed, but possibly to occur.
 public class CallReCompMutator: CallDeOptMutator {
 
-    public override func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
-        // Trigger JIT compilation then de-optimization on instr
-        super.mutate(instr, builder)
+    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        // Trigger JIT compilation then de-optimization on the instruction
+        super.mutate(i, b)
 
         // Create some new variables for future use
-        builder.buildPrefix()
-        builder.build(n: defaultSmallCodeBlockSize);
+        b.buildPrefix()
+        b.build(n: defaultSmallCodeBlockSize);
 
         // Reuse the types of the arguments to try triggering a re-compilation
-        builder.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
-            switch (instr.op) {
+        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
+            switch (i.op) {
                 case let op as CallFunction:
-                    let f = builder.adopt(instr.input(0))
-                    let argTypes = instr.inputs[1..<instr.numInputs].map({
-                        builder.type(of: $0)
+                    let f = b.adopt(i.input(0))
+                    let argTypes = i.inputs[1..<i.numInputs].map({
+                        b.type(of: $0)
                     })
-                    let args = builder.randomVariables(ofTypes: argTypes)
-                    builder.callFunction(f, withArgs: args, guard: op.isGuarded)
+                    let args = b.randomVariables(ofTypes: argTypes)
+                    b.callFunction(f, withArgs: args, guard: op.isGuarded)
 
                 case let op as CallMethod:
                     let m = op.methodName
-                    let obj = builder.adopt(instr.input(0))
-                    let argTypes = instr.inputs[1..<instr.numInputs].map({
-                        builder.type(of: $0)
+                    let obj = b.adopt(i.input(0))
+                    let argTypes = i.inputs[1..<i.numInputs].map({
+                        b.type(of: $0)
                     })
-                    let args = builder.randomVariables(ofTypes: argTypes)
-                    builder.callMethod(m, on: obj, withArgs: args, guard: op.isGuarded)
+                    let args = b.randomVariables(ofTypes: argTypes)
+                    b.callMethod(m, on: obj, withArgs: args, guard: op.isGuarded)
 
                 default: // TODO: Support more instructions like CallFunctionWithSpread. See JsOperations.swift.
                     preconditionFailure("Unsupported type of function/method call: ")
@@ -206,5 +230,3 @@ public class CallReCompMutator: CallDeOptMutator {
     }
 }
 
-
-/// TODO: Add some more complicated mutators involving multiple rounds of JIT compilation, de-optimization, and re-compilation

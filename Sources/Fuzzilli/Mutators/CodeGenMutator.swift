@@ -23,7 +23,7 @@ public class CodeGenMutator: BaseInstructionMutator {
         assert(defaultCodeGenerationAmount >= ProgramBuilder.minBudgetForRecursiveCodeGeneration)
     }
 
-    public override func beginMutation(of program: Program) {
+    public override func beginMutation(of program: Program, using builder: ProgramBuilder) {
         deadCodeAnalyzer = DeadCodeAnalyzer()
         variableAnalyzer = VariableAnalyzer()
     }

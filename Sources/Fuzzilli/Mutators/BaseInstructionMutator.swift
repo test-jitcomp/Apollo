@@ -22,7 +22,7 @@ public class BaseInstructionMutator: Mutator {
     }
 
     override final func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
-        beginMutation(of: program)
+        beginMutation(of: program, using: b)
 
         var candidates = [Int]()
         for instr in program.code {
@@ -50,11 +50,16 @@ public class BaseInstructionMutator: Mutator {
             }
         }
 
+        endMutation(of: program, using: b)
+
         return b.finalize()
     }
 
     /// Can be overwritten by child classes.
-    public func beginMutation(of program: Program) {}
+    public func beginMutation(of program: Program, using builder: ProgramBuilder) {}
+
+    /// Can be overwritten by child classes.
+    public func endMutation(of program: Program, using builder: ProgramBuilder) {}
 
     /// Overridden by child classes.
     /// Determines the set of instructions that can be mutated by this mutator
