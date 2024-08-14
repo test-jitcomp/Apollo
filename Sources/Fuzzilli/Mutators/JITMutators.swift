@@ -21,7 +21,7 @@ extension ProgramBuilder {
         return types.map({
             var v = randomVariable(ofType: $0)
             if v == nil {
-               v = nextVariable()
+               v = loadNull()
                setType(ofVariable: v!, to: $0)
             }
             return v!
@@ -62,8 +62,7 @@ public class JITMutator: BaseInstructionMutator {
         )
     }
 
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
-    }
+    public override func endMutation(of p: Program, using b: ProgramBuilder) {}
 }
 
 /// A JIT mutator that inserts a loop into a subroutine, trying to make the subroutine under insertion JIT compiled.
@@ -93,7 +92,8 @@ public class SubrtJITCompMutator: JITMutator {
         b.buildPrefix()
         // In (and only in) JSC, loop iterations counts 1/15 of method calls.
         // TODO: Change the iteration account according to the profile
-        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT * 15) {
+        // TODO: Randomly pick an int variable as the loop trip
+         b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT * 15) {
             b.build(n: defaultSmallCodeBlockSize, by: .generating)
         }
     }
@@ -101,9 +101,7 @@ public class SubrtJITCompMutator: JITMutator {
 
 /// A JIT mutator that wraps a function/method call with a loop to enable JIT compilation.
 /// 
-/// Specifically, this mutator targets fuzzing JIT compilers. 
 /// To ensure JIT compilation as much as possible, it wraps a random function/method call instruction inside a loop. 
-/// To trigger de-optimization, it tries to call the same function/method with different arguments inside another loop.
 ///
 ///     foo(a, b); 
 ///
@@ -123,13 +121,13 @@ public class CallJITCompMutator: JITMutator {
     }
 
     public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        // Adopt the instruction first otherwise the output variable won't be visible
+        b.adopt(i)
         // Wrap the instruction with a loop such that the called function/method can be JITted
         b.buildPrefix()
-        // TODO: Randomly pick an int variable as the loop trip
-        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) { _ in
+        b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
             b.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
-            // TODO: Drop guarding to avoid being guarded by try-catch after lifting?
-            b.adopt(i)
+            b.replicate(i)
             b.build(n: defaultSmallCodeBlockSize / 2, by: .generating)
         }
     }
@@ -137,9 +135,8 @@ public class CallJITCompMutator: JITMutator {
 
 /// A JIT mutator that wraps a function/method call to enable JIT compilation then trigger de-optimization.
 /// 
-/// Specifically, this mutator targets fuzzing JIT compilers. 
 /// To ensure JIT compilation as much as possible, it wraps a random function/method call instruction inside a loop. 
-/// To trigger de-optimization and re-compilation, it tries to call the same function/method with different arguments inside another loop.
+/// To trigger de-optimization, it tries to call the same function/method with different arguments inside another loop.
 ///
 ///     foo(a, b); 
 ///
@@ -165,7 +162,7 @@ public class CallDeOptMutator: CallJITCompMutator {
         // match the argument type of the called function/method. This contradicts our de-opt goal.
         switch (i.op) {
             case let op as CallFunction:
-                let f = b.adopt(i.input(0))
+                let f = i.input(0)
                 let argTypes = i.inputs[1..<i.numInputs].map({
                     b.type(of: $0)
                 })
@@ -174,7 +171,7 @@ public class CallDeOptMutator: CallJITCompMutator {
 
             case let op as CallMethod:
                 let m = op.methodName
-                let obj = b.adopt(i.input(0))
+                let obj = i.input(0)
                 let argTypes = i.inputs[1..<i.numInputs].map({
                     b.type(of: $0)
                 })
@@ -187,9 +184,8 @@ public class CallDeOptMutator: CallJITCompMutator {
     }
 }
 
-/// A JIT mutator that wraps a function/method call to enable JIT compilation, trigger de-optimization, and re-compile.
+/// A JIT mutator that wraps a function/method call to enable JIT compilation, trigger de-optimization, and enable re-compilation.
 /// 
-/// Specifically, this mutator targets fuzzing JIT compilers. 
 /// To ensure JIT compilation as much as possible, it wraps a random function/method call instruction inside a loop. 
 /// To trigger de-optimization and re-compilation, it tries to call the same function/method with different arguments inside another loop.
 ///
@@ -201,7 +197,7 @@ public class CallDeOptMutator: CallJITCompMutator {
 ///     ...;
 ///     foo(c, d);                           // trigger de-optimization
 ///     ...;
-///     for (...) { ...; foo(c, d); ...; }   // try enabling re-compilation
+///     for (...) { ...; foo(e, f); ...; }   // try enabling re-compilation
 ///
 /// Both de-optimization and re-compilation are not guaranteed, but possibly to occur.
 public class CallReCompMutator: CallDeOptMutator {
@@ -218,7 +214,7 @@ public class CallReCompMutator: CallDeOptMutator {
         b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
             switch (i.op) {
                 case let op as CallFunction:
-                    let f = b.adopt(i.input(0))
+                    let f = i.input(0)
                     let argTypes = i.inputs[1..<i.numInputs].map({
                         b.type(of: $0)
                     })
@@ -227,7 +223,7 @@ public class CallReCompMutator: CallDeOptMutator {
 
                 case let op as CallMethod:
                     let m = op.methodName
-                    let obj = b.adopt(i.input(0))
+                    let obj = i.input(0)
                     let argTypes = i.inputs[1..<i.numInputs].map({
                         b.type(of: $0)
                     })

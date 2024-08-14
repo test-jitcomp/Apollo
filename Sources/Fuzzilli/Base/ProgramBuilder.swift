@@ -953,6 +953,11 @@ public class ProgramBuilder {
         internalAppend(Instruction(instr.op, inouts: adopt(instr.inouts)))
     }
 
+    /// Replicate (adopt inputs but create new outputs) an instruction from ourselves (the builder) or the program that is currently configured for adoption into the program being constructed.
+    public func replicate(_ instr: Instruction) {
+        emit(instr.op, withInputs: adopt(instr.inputs))
+    }
+
     /// Append an instruction at the current position.
     public func append(_ instr: Instruction) {
         for v in instr.allOutputs {
