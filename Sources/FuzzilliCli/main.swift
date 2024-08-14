@@ -400,7 +400,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
 
     // These mutators are specifically designed around JIT compilers
     let jitMutators = WeightedList<JITMutator>([
-        (SubRtJITMutator(),                 3),
+        (SubrtJITCompMutator(),             3),
         (CallJITCompMutator(),              3),
         (CallDeOptMutator(),                3),
         (CallReCompMutator(),               3),

@@ -63,12 +63,22 @@ public class JITMutator: BaseInstructionMutator {
     }
 
     public override func endMutation(of p: Program, using b: ProgramBuilder) {
-        print(b.dumpCurrentProgram())
     }
 }
 
 /// A JIT mutator that inserts a loop into a subroutine, trying to make the subroutine under insertion JIT compiled.
-public class SubRtJITMutator: JITMutator {
+///
+/// To ensure JIT compilation as much as possible, it insert a loop after a random instruction.
+///
+///     instr;
+///
+///        v
+///
+///     instr;
+///     for (...) { ...; } // enable JIT compilation
+///
+/// The JIT compilation should be guaranteed; however, this depends on the loop trop.
+public class SubrtJITCompMutator: JITMutator {
 
     public override func canMutate(_ i: Instruction) -> Bool {
         return (
@@ -79,6 +89,7 @@ public class SubRtJITMutator: JITMutator {
 
     public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         b.adopt(i)
+        // Insert a loop after the instruction to make the surrounding subroutine JIT compiled
         b.buildPrefix()
         // In (and only in) JSC, loop iterations counts 1/15 of method calls.
         // TODO: Change the iteration account according to the profile

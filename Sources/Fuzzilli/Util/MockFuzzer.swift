@@ -181,7 +181,7 @@ public func makeMockFuzzer(config maybeConfiguration: Configuration? = nil, engi
 
     // the JIT mutators to use for this fuzzing engine.
     let jitMutators = WeightedList<JITMutator>([
-        (SubRtJITMutator(),                 1),
+        (SubrtJITCompMutator(),             1),
         (CallJITCompMutator(),              1),
     ])
 
