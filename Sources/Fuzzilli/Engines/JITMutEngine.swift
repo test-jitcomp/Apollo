@@ -16,15 +16,31 @@ import Foundation
 
 /// The core fuzzer responsible for generating and executing programs, specifically for JIT compilers.
 public class JITMutEngine: FuzzEngine {
+
+    // Factor for continue selecting a JIT mutator again when one of them fails
+    private static let ACCU_PROB_FACTOR = 0.75
+
     // The number of consecutive mutations to apply to a sample.
     private let numConsecutiveMutations: Int
 
     // The number of consecutive JIT mutations to apply to a sample.
     private let numConsecutiveJITMutations: Int
 
-    public init(numConsecutiveMutations: Int, numConsecutiveJITMutations: Int) {
+    // The probability of applying JIT mutations in the end
+    private let probJITMutation: Double
+
+    // Mutators to apply when all JIT mutations fail
+    private let backupMutators: WeightedList<Mutator>
+
+    public init(numConsecutiveMutations: Int, numConsecutiveJITMutations: Int, probJITMutation: Double) {
         self.numConsecutiveMutations = numConsecutiveMutations
         self.numConsecutiveJITMutations = numConsecutiveJITMutations
+        self.probJITMutation = probJITMutation
+        // TODO: May be add program template
+        self.backupMutators = WeightedList<Mutator>([
+            (CodeGenMutator(),               5),
+            (SubrtJITCompMutator(),          1),
+        ])
 
         super.init(name: "JITMutEngine")
     }
@@ -35,7 +51,7 @@ public class JITMutEngine: FuzzEngine {
     ///
     ///     let parent = pickSampleFromCorpus(woJIT)
     ///     repeat N times:
-    ///         let current = if it is the Nth time mutation: 
+    ///         let current = if it is the Nth time mutation and prob <= JIT_PROB:
     ///             jit-mutate(parent)
     ///         else
     ///             mutate(parent) 
@@ -57,16 +73,19 @@ public class JITMutEngine: FuzzEngine {
         parent = prepareForMutating(parent)
         for i in 0..<(numConsecutiveMutations + numConsecutiveJITMutations) {
             // TODO: factor out code shared with the MutationEngine/HybridEngine?
-            var mutator: Mutator 
-            if i < numConsecutiveMutations {
+            var mutator: Mutator, maxAttempts: Int, accProbJITMut: Double
+            if i < numConsecutiveMutations || !probability(self.probJITMutation) {
                 mutator = fuzzer.mutators.randomElement()
+                maxAttempts = 10
+                accProbJITMut = 1.0
             } else {
                 mutator = fuzzer.jitMutators.randomElement()
+                maxAttempts = 5
+                accProbJITMut = self.probJITMutation
             }
 
-            let maxAttempts: Int = mutator is JITMutator ? 5 : 10
             var mutatedProgram: Program? = nil
-            for _ in 0..<maxAttempts {
+            for j in 0...maxAttempts {
                 if let result = mutator.mutate(parent, for: fuzzer) {
                     // Success!
                     result.contributors.formUnion(parent.contributors)
@@ -76,15 +95,17 @@ public class JITMutEngine: FuzzEngine {
                 } else {
                     // Try a different mutator.
                     mutator.failedToGenerate()
-                    if i < numConsecutiveMutations {
+                    if i < numConsecutiveMutations || !probability(accProbJITMut) { // We keep mutating the program by common mutators
                         mutator = fuzzer.mutators.randomElement()
-                    } else {
+                    } else if j < maxAttempts { // We keep mutating the program by JIT mutators
                         mutator = fuzzer.jitMutators.randomElement()
+                        accProbJITMut = accProbJITMut * JITMutEngine.ACCU_PROB_FACTOR
+                    } else { // We should apply JIT mutations but we are the last attempts, giving in.
+                        mutator = backupMutators.randomElement()
                     }
                 }
             }
 
-            // TODO:  Generate a new program using Templates or CodeGenMutator for fuzzing whenever fails
             guard let program = mutatedProgram else {
                 logger.warning("Could not mutate sample, giving up. Sample:\n\(FuzzILLifter().lift(parent))")
                 continue

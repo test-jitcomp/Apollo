@@ -62,7 +62,9 @@ public class JITMutator: BaseInstructionMutator {
         )
     }
 
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {}
+    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+        // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
+    }
 }
 
 /// A JIT mutator that inserts a loop into a subroutine, trying to make the subroutine under insertion JIT compiled.
@@ -93,7 +95,7 @@ public class SubrtJITCompMutator: JITMutator {
         // In (and only in) JSC, loop iterations counts 1/15 of method calls.
         // TODO: Change the iteration account according to the profile
         // TODO: Randomly pick an int variable as the loop trip
-         b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT * 15) {
+         b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
             b.build(n: defaultSmallCodeBlockSize, by: .generating)
         }
     }

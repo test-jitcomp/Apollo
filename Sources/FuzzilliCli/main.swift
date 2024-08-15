@@ -405,6 +405,9 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         (CallDeOptMutator(),                1),
         (CallReCompMutator(),               1),
     ])
+    if ["jitmut"].contains(engineName) {
+        logger.info("Enabled JIT mutators: \(jitMutators.map { $0.name })")
+    }
 
     // Engines to execute programs.
     let engine: FuzzEngine
@@ -426,7 +429,11 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         // the MutationEngine can already find most "low-hanging fruits" in its first run.
         engine = MultiEngine(engines: engines, initialActive: mutationEngine, iterationsPerEngine: 10000)
     case "jitmut":
-        engine = JITMutEngine(numConsecutiveMutations: consecutiveMutations - 1, numConsecutiveJITMutations: 1)
+        engine = JITMutEngine(
+            numConsecutiveMutations: consecutiveMutations - 1,
+            numConsecutiveJITMutations: 1,
+            probJITMutation: 0.40
+        )
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
     }
