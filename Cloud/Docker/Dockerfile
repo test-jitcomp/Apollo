@@ -26,7 +26,7 @@ ADD JerryScriptBuilder/out jerryscript
 ADD QJSBuilder/out qjs
 
 # Add Corpus (if any)
-ADD Corpus corpus
+# ADD Corpus corpus
 
 # Add Fuzzilli binaries
 ADD FuzzilliBuilder/out/Fuzzilli Fuzzilli
