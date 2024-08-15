@@ -64,7 +64,7 @@ public class JITMutEngine: FuzzEngine {
                 mutator = fuzzer.jitMutators.randomElement()
             }
 
-            let maxAttempts: Int = 10
+            let maxAttempts: Int = mutator is JITMutator ? 5 : 10
             var mutatedProgram: Program? = nil
             for _ in 0..<maxAttempts {
                 if let result = mutator.mutate(parent, for: fuzzer) {
@@ -84,6 +84,7 @@ public class JITMutEngine: FuzzEngine {
                 }
             }
 
+            // TODO:  Generate a new program using Templates or CodeGenMutator for fuzzing whenever fails
             guard let program = mutatedProgram else {
                 logger.warning("Could not mutate sample, giving up. Sample:\n\(FuzzILLifter().lift(parent))")
                 continue
