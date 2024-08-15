@@ -22,6 +22,8 @@ ADD V8Builder/out v8
 ADD DuktapeBuilder/out duktape
 # Add JerryScript binary
 ADD JerryScriptBuilder/out jerryscript
+# Add QuickJS binary
+ADD QJSBuilder/out qjs
 
 # Add Corpus (if any)
 ADD Corpus corpus
