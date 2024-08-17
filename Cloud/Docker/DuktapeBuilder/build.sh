@@ -5,10 +5,9 @@ set -e
 cd $(dirname $0)
 FUZZILLI_ROOT=../../..
 
-# Get the hash of the most recent commit on master. This is to ensure proper caching behavior in docker
+# Setup build context
 REV=$(cat $FUZZILLI_ROOT/Targets/duktape/REVISION)
-
-# Since fuzzilli is integrated as a duktape make target, no need to pull over patches or a build script
+cp -R $FUZZILLI_ROOT/Targets/duktape/Patches .
 
 # Fetch the source code, get the current master commit, and compile the engine
 docker build --build-arg rev=$REV -t duktape_builder .

@@ -21,10 +21,16 @@ WORKDIR /home/builder/duktape
 
 # The hash of the most recent commit is passed in from the build script, to ensure proper caching behavior
 ARG rev
-RUN git pull && git checkout $rev
 
 # Update system packages first
 RUN apt-get -y update && apt-get -y upgrade
+
+# Fetch latest source code and checkout requested source revision
+RUN git pull && git checkout $rev
+
+# Apply patches to the specified revision
+ADD Patches Patches
+RUN for i in `ls Patches`; do patch -p1 < Patches/$i; done
 
 # Make normally to pull down NodeJS deps
 RUN make
