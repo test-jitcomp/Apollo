@@ -1,0 +1,22 @@
+diff --git a/Makefile b/Makefile
+index 5bafc73..e926877 100644
+--- a/Makefile
++++ b/Makefile
+@@ -37,7 +37,7 @@
+ # so check 'nodejs' first.
+ GIT ?= $(shell command -v git 2>/dev/null)
+ GIT := $(GIT)
+-NODEJS ?= $(shell { command -v nodejs || command -v node; } 2>/dev/null)
++NODEJS ?= $(shell { command -v node || command -v nodejs; } 2>/dev/null)
+ NODEJS := $(NODEJS)
+ WGET ?= $(shell command -v wget 2>/dev/null)
+ WGET := $(WGET)
+@@ -49,7 +49,7 @@ PYTHON3 ?= $(shell { command -v python3 || command -v python; } 2>/dev/null)
+ PYTHON3 := $(PYTHON3)
+ PYTHON2 ?= $(shell { command -v python2 || command -v python; } 2>/dev/null)
+ PYTHON2 := $(PYTHON2)
+-PYTHON ?= $(PYTHON2)
++PYTHON ?= $(PYTHON3)
+ PYTHON := $(PYTHON)
+ DOCKER ?= docker
+ DOCKER := $(DOCKER)

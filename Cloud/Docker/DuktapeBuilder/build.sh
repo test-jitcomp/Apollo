@@ -6,7 +6,7 @@ cd $(dirname $0)
 FUZZILLI_ROOT=../../..
 
 # Get the hash of the most recent commit on master. This is to ensure proper caching behavior in docker
-REV=$(git ls-remote https://github.com/svaarala/duktape.git | grep refs/heads/master | awk '{print $1;}')
+REV=$(cat $FUZZILLI_ROOT/Targets/duktape/REVISION)
 
 # Since fuzzilli is integrated as a duktape make target, no need to pull over patches or a build script
 

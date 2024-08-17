@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=bash
 
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get install -y git make clang bc curl python-pip nodejs npm
+RUN apt-get install -y git make clang bc curl python3 python3-pip nodejs npm
 
 # Update NodeJS and NPM to the latest versions
 RUN npm install -g n
@@ -12,7 +12,7 @@ RUN n latest
 RUN npm install -g npm
 
 # Dependency of the duktape build process
-RUN pip install pyyaml
+RUN pip3 install pyyaml
 
 RUN useradd -m builder
 
