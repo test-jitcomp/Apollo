@@ -5,7 +5,7 @@ set -e
 CONTAINER_NAME=fuzzilli
 
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 [fuzzilli|jsc|spidermonkey|v8|duktape|jerryscript|qjs|major]"
+    echo "Usage: $0 [fuzzilli|jsc|spidermonkey|v8|duktape|jerryscript|qjs|njs|major]"
     exit 1
 fi
 
@@ -15,6 +15,7 @@ BUILD_V8=false
 BUILD_DUKTAPE=false
 BUILD_JERRYSCRIPT=false
 BUILD_QJS=false
+BUILD_NJS=false
 
 while test $# -gt 0
 do
@@ -39,6 +40,9 @@ do
             ;;
         qjs)
             BUILD_QJS=true
+            ;;
+        njs)
+            BUILD_NJS=true
             ;;
         major)
             BUILD_JSC=true
@@ -70,6 +74,7 @@ mkdir -p V8Builder/out
 mkdir -p DuktapeBuilder/out
 mkdir -p JerryScriptBuilder/out
 mkdir -p QJSBuilder/out
+mkdir -p NJSBuilder/out
 
 if [ "$BUILD_JSC" = true ]; then
     echo "[*] Building JavaScriptCore"
@@ -99,6 +104,11 @@ fi
 if [ "$BUILD_QJS" = true ]; then
     echo "[*] Building QuickJS"
     ./QJSBuilder/build.sh
+fi
+
+if [ "$BUILD_NJS" = true ]; then
+    echo "[*] Building njs"
+    ./NJSBuilder/build.sh
 fi
 
 #
