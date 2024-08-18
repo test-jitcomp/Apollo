@@ -20,3 +20,29 @@ index 5bafc73..e926877 100644
  PYTHON := $(PYTHON)
  DOCKER ?= docker
  DOCKER := $(DOCKER)
+diff --git a/tools/configure.py b/tools/configure.py
+index 88fb6981..7524e664 100644
+--- a/tools/configure.py
++++ b/tools/configure.py
+@@ -14,18 +14,18 @@ import tempfile
+
+ def detect_nodejs():
+     try:
+-        cmd = [ 'nodejs', '-e', 'console.log("test")' ]
++        cmd = [ 'node', '-e', 'console.log("test")' ]
+         res = subprocess.check_output(cmd)
+         if res[:4] == 'test'.encode('utf-8'):
+-            return 'nodejs'
++            return 'node'
+     except:
+         pass
+
+     try:
+-        cmd = [ 'node', '-e', 'console.log("test")' ]
++        cmd = [ 'nodejs', '-e', 'console.log("test")' ]
+         res = subprocess.check_output(cmd)
+         if res[:4] == 'test'.encode('utf-8'):
+-            return 'node'
++            return 'nodejs'
+     except:
+         pass
