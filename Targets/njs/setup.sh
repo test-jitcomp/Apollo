@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # get codebase
 git clone https://github.com/nginx/njs.git
 
@@ -16,7 +18,7 @@ MODIF+="\n"'	external\/njs_fuzzilli.c'
 MODIF+="\n"'	cp external\/njs_shell.c external\/njs_fuzzilli_shell.c'
 MODIF+="\n"''
 MODIF+="\n"'	.\/external\/gen-fuzzilli-shell.sh'
-MODIF+="\n"'	'
+MODIF+="\n"''
 MODIF+="\n"'	\\\$(NJS_CC) -c \\\$(NJS_LIB_INCS) \\\$(CFLAGS) \\\\'
 MODIF+="\n"'		\\\$(NJS_LIB_AUX_CFLAGS) \\\\'
 MODIF+="\n"'		-o $NJS_BUILD_DIR\/external\/njs_fuzzilli_shell.o \\\\'
