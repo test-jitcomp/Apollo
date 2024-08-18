@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV SHELL=bash
 
 RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get install -y git make
+RUN apt-get install -y git make libpcre3-dev zlib1g-dev libssl-dev libxml2-dev libxslt-dev
 
 RUN useradd -m builder
 
