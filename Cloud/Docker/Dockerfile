@@ -25,7 +25,7 @@ ADD JerryScriptBuilder/out jerryscript
 # Add QuickJS binary
 ADD QJSBuilder/out qjs
 # Add NJS binary
-ADD QJSBuilder/out njs
+ADD NJSBuilder/out njs
 
 # Add Corpus (if any)
 # ADD Corpus corpus
