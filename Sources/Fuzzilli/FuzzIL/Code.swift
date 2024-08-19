@@ -1,4 +1,5 @@
 // Copyright 2020 Google LLC
+// Copyright 2024 Cong Li (congli@smail.nju.edu.cn, cong.li@inf.ethz.ch)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -470,6 +471,36 @@ public struct Code: Collection {
         return groups
     }
 
+    /// Finds and returns all block groups at a block depth in this code. The depths starts from 0.
+    ///
+    /// The returned list will be ordered:
+    ///  - a block ending before another block starts will come before that block
+    public func findAllBlockGroups(at depth: Int) -> [BlockGroup] {
+        var groups = [(Int, BlockGroup)]()
+    
+        var stack = Stack<[Int]>() // [depth, startIndex, endIndex]
+        for instr in self {
+            if instr.isBlockStart && !instr.isBlockEnd {
+                // By definition, this is the start of a block group
+                if stack.isEmpty {
+                    stack.push([0, instr.index])
+                } else {
+                    stack.push([stack.top[0] + 1, instr.index])
+                }
+            } else if instr.isBlockEnd {
+                // Either the end of a block group or a new block in the current block group.
+                stack.top.append(instr.index)
+                if !instr.isBlockStart {
+                    let tuple = stack.pop()
+                    groups.append((tuple[0], BlockGroup([tuple[1], tuple[2]], in: self)))
+                }
+            }
+        }
+        
+        return groups.filter({ $0.0 == depth }).map({ $0.1 })
+    }
+
+    
     /// Check that the given block object describes a block in this code.
     private func isValidBlock(_ block: Block) -> Bool {
         return block.tail <= endIndex && self[block.head].isBlockStart && self[block.tail].isBlockEnd && self[block.tail].op.isMatchingEnd(for: self[block.head].op)
