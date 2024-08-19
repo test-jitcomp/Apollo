@@ -50,7 +50,7 @@ public class JITMutator: BaseInstructionMutator {
         contextAnalyzer = ContextAnalyzer()
     }
 
-    public override func canMutate(_ i: Instruction) -> Bool {
+    final public override func canMutate(_ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
         return (
             // It's wired that some instructions are not in the .javascript context
@@ -58,12 +58,20 @@ public class JITMutator: BaseInstructionMutator {
             contextAnalyzer.context.contains(.javascript) &&
             // Basically, we cannot apply mutation inside a loop, otherwise,
             // adding new loops may cause the program to run overly long.
-            !contextAnalyzer.context.contains(.loop)
+            !contextAnalyzer.context.contains(.loop) &&
+            // Then we delegate to our children for further checks
+            canMutateInstruction(i)
         )
     }
 
     public override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
+    }
+
+    /// Overridden by child classes.
+    /// Check if the instruction can be mutated by the mutator
+    func canMutateInstruction(_ i: Instruction) -> Bool {
+        fatalError("This method must be overriden")
     }
 }
 
@@ -81,11 +89,8 @@ public class JITMutator: BaseInstructionMutator {
 /// The JIT compilation should be guaranteed; however, this depends on the loop trop.
 public class SubrtJITCompMutator: JITMutator {
 
-    public override func canMutate(_ i: Instruction) -> Bool {
-        return (
-            super.canMutate(i) &&
-            !contextAnalyzer.context.contains(.subroutine)
-        )
+    override func canMutateInstruction(_ i: Instruction) -> Bool {
+        return !contextAnalyzer.context.contains(.subroutine)
     }
 
     public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
@@ -114,9 +119,8 @@ public class SubrtJITCompMutator: JITMutator {
 /// The JIT compilation should be guaranteed; however, this depends on the loop trop.
 public class CallJITCompMutator: JITMutator {
 
-    override public func canMutate(_ i: Instruction) -> Bool {
+    override func canMutateInstruction(_ i: Instruction) -> Bool {
         return (
-            super.canMutate(i) &&
             i.isCall &&
             (i.op is CallMethod || i.op is CallFunction) // TODO: Remove this to support all types of calls
         )
