@@ -102,6 +102,12 @@ public struct Fuzzilli_Protobuf_Statistics {
     set {_uniqueStorage()._crashingSamples = newValue}
   }
 
+  //// The number of crashes found.
+  public var miscompilingSamples: UInt64 {
+    get {return _storage._miscompilingSamples}
+    set {_uniqueStorage()._miscompilingSamples = newValue}
+  }
+
   //// The total number of program executions.
   public var totalExecs: UInt64 {
     get {return _storage._totalExecs}
@@ -287,18 +293,19 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     3: .same(proto: "interestingSamples"),
     4: .same(proto: "timedOutSamples"),
     5: .same(proto: "crashingSamples"),
-    6: .same(proto: "totalExecs"),
-    7: .same(proto: "avgCorpusSize"),
-    8: .same(proto: "avgProgramSize"),
-    9: .same(proto: "avgCorpusProgramSize"),
-    10: .same(proto: "avgExecutionTime"),
-    11: .same(proto: "execsPerSecond"),
-    12: .same(proto: "fuzzerOverhead"),
-    13: .same(proto: "minimizationOverhead"),
-    14: .same(proto: "numChildNodes"),
-    15: .same(proto: "coverage"),
-    16: .same(proto: "correctnessRate"),
-    17: .same(proto: "timeoutRate"),
+    6: .same(proto: "miscompilingSamples"),
+    7: .same(proto: "totalExecs"),
+    8: .same(proto: "avgCorpusSize"),
+    9: .same(proto: "avgProgramSize"),
+    10: .same(proto: "avgCorpusProgramSize"),
+    11: .same(proto: "avgExecutionTime"),
+    12: .same(proto: "execsPerSecond"),
+    13: .same(proto: "fuzzerOverhead"),
+    14: .same(proto: "minimizationOverhead"),
+    15: .same(proto: "numChildNodes"),
+    16: .same(proto: "coverage"),
+    17: .same(proto: "correctnessRate"),
+    18: .same(proto: "timeoutRate"),
   ]
 
   fileprivate class _StorageClass {
@@ -307,6 +314,7 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
     var _interestingSamples: UInt64 = 0
     var _timedOutSamples: UInt64 = 0
     var _crashingSamples: UInt64 = 0
+    var _miscompilingSamples: UInt64 = 0
     var _totalExecs: UInt64 = 0
     var _avgCorpusSize: Double = 0
     var _avgProgramSize: Double = 0
@@ -330,6 +338,7 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       _interestingSamples = source._interestingSamples
       _timedOutSamples = source._timedOutSamples
       _crashingSamples = source._crashingSamples
+      _miscompilingSamples = source._miscompilingSamples
       _totalExecs = source._totalExecs
       _avgCorpusSize = source._avgCorpusSize
       _avgProgramSize = source._avgProgramSize
@@ -365,18 +374,19 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         case 3: try { try decoder.decodeSingularUInt64Field(value: &_storage._interestingSamples) }()
         case 4: try { try decoder.decodeSingularUInt64Field(value: &_storage._timedOutSamples) }()
         case 5: try { try decoder.decodeSingularUInt64Field(value: &_storage._crashingSamples) }()
-        case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._totalExecs) }()
-        case 7: try { try decoder.decodeSingularDoubleField(value: &_storage._avgCorpusSize) }()
-        case 8: try { try decoder.decodeSingularDoubleField(value: &_storage._avgProgramSize) }()
-        case 9: try { try decoder.decodeSingularDoubleField(value: &_storage._avgCorpusProgramSize) }()
-        case 10: try { try decoder.decodeSingularDoubleField(value: &_storage._avgExecutionTime) }()
-        case 11: try { try decoder.decodeSingularDoubleField(value: &_storage._execsPerSecond) }()
-        case 12: try { try decoder.decodeSingularDoubleField(value: &_storage._fuzzerOverhead) }()
-        case 13: try { try decoder.decodeSingularDoubleField(value: &_storage._minimizationOverhead) }()
-        case 14: try { try decoder.decodeSingularUInt64Field(value: &_storage._numChildNodes) }()
-        case 15: try { try decoder.decodeSingularDoubleField(value: &_storage._coverage) }()
-        case 16: try { try decoder.decodeSingularDoubleField(value: &_storage._correctnessRate) }()
-        case 17: try { try decoder.decodeSingularDoubleField(value: &_storage._timeoutRate) }()
+        case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._miscompilingSamples) }()
+        case 7: try { try decoder.decodeSingularUInt64Field(value: &_storage._totalExecs) }()
+        case 8: try { try decoder.decodeSingularDoubleField(value: &_storage._avgCorpusSize) }()
+        case 9: try { try decoder.decodeSingularDoubleField(value: &_storage._avgProgramSize) }()
+        case 10: try { try decoder.decodeSingularDoubleField(value: &_storage._avgCorpusProgramSize) }()
+        case 11: try { try decoder.decodeSingularDoubleField(value: &_storage._avgExecutionTime) }()
+        case 12: try { try decoder.decodeSingularDoubleField(value: &_storage._execsPerSecond) }()
+        case 13: try { try decoder.decodeSingularDoubleField(value: &_storage._fuzzerOverhead) }()
+        case 14: try { try decoder.decodeSingularDoubleField(value: &_storage._minimizationOverhead) }()
+        case 15: try { try decoder.decodeSingularUInt64Field(value: &_storage._numChildNodes) }()
+        case 16: try { try decoder.decodeSingularDoubleField(value: &_storage._coverage) }()
+        case 17: try { try decoder.decodeSingularDoubleField(value: &_storage._correctnessRate) }()
+        case 18: try { try decoder.decodeSingularDoubleField(value: &_storage._timeoutRate) }()
         default: break
         }
       }
@@ -400,41 +410,44 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
       if _storage._crashingSamples != 0 {
         try visitor.visitSingularUInt64Field(value: _storage._crashingSamples, fieldNumber: 5)
       }
+      if _storage._miscompilingSamples != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._miscompilingSamples, fieldNumber: 6)
+      }
       if _storage._totalExecs != 0 {
-        try visitor.visitSingularUInt64Field(value: _storage._totalExecs, fieldNumber: 6)
+        try visitor.visitSingularUInt64Field(value: _storage._totalExecs, fieldNumber: 7)
       }
       if _storage._avgCorpusSize != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._avgCorpusSize, fieldNumber: 7)
+        try visitor.visitSingularDoubleField(value: _storage._avgCorpusSize, fieldNumber: 8)
       }
       if _storage._avgProgramSize != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._avgProgramSize, fieldNumber: 8)
+        try visitor.visitSingularDoubleField(value: _storage._avgProgramSize, fieldNumber: 9)
       }
       if _storage._avgCorpusProgramSize != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._avgCorpusProgramSize, fieldNumber: 9)
+        try visitor.visitSingularDoubleField(value: _storage._avgCorpusProgramSize, fieldNumber: 10)
       }
       if _storage._avgExecutionTime != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._avgExecutionTime, fieldNumber: 10)
+        try visitor.visitSingularDoubleField(value: _storage._avgExecutionTime, fieldNumber: 11)
       }
       if _storage._execsPerSecond != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._execsPerSecond, fieldNumber: 11)
+        try visitor.visitSingularDoubleField(value: _storage._execsPerSecond, fieldNumber: 12)
       }
       if _storage._fuzzerOverhead != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._fuzzerOverhead, fieldNumber: 12)
+        try visitor.visitSingularDoubleField(value: _storage._fuzzerOverhead, fieldNumber: 13)
       }
       if _storage._minimizationOverhead != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._minimizationOverhead, fieldNumber: 13)
+        try visitor.visitSingularDoubleField(value: _storage._minimizationOverhead, fieldNumber: 14)
       }
       if _storage._numChildNodes != 0 {
-        try visitor.visitSingularUInt64Field(value: _storage._numChildNodes, fieldNumber: 14)
+        try visitor.visitSingularUInt64Field(value: _storage._numChildNodes, fieldNumber: 15)
       }
       if _storage._coverage != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._coverage, fieldNumber: 15)
+        try visitor.visitSingularDoubleField(value: _storage._coverage, fieldNumber: 16)
       }
       if _storage._correctnessRate != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._correctnessRate, fieldNumber: 16)
+        try visitor.visitSingularDoubleField(value: _storage._correctnessRate, fieldNumber: 17)
       }
       if _storage._timeoutRate != 0 {
-        try visitor.visitSingularDoubleField(value: _storage._timeoutRate, fieldNumber: 17)
+        try visitor.visitSingularDoubleField(value: _storage._timeoutRate, fieldNumber: 18)
       }
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -450,6 +463,7 @@ extension Fuzzilli_Protobuf_Statistics: SwiftProtobuf.Message, SwiftProtobuf._Me
         if _storage._interestingSamples != rhs_storage._interestingSamples {return false}
         if _storage._timedOutSamples != rhs_storage._timedOutSamples {return false}
         if _storage._crashingSamples != rhs_storage._crashingSamples {return false}
+        if _storage._miscompilingSamples != rhs_storage._miscompilingSamples {return false}
         if _storage._totalExecs != rhs_storage._totalExecs {return false}
         if _storage._avgCorpusSize != rhs_storage._avgCorpusSize {return false}
         if _storage._avgProgramSize != rhs_storage._avgProgramSize {return false}

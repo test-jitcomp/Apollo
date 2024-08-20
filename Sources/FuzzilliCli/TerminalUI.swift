@@ -59,6 +59,11 @@ class TerminalUI {
             }
         }
 
+        fuzzer.registerEventListener(for: fuzzer.events.MiscompilationFound) { miscomp in
+            print("########## Miscompilation Found ##########")
+            print(fuzzer.lifter.lift(miscomp.program, withOptions: .includeComments))
+        }
+
         fuzzer.registerEventListener(for: fuzzer.events.ProgramGenerated) { program in
             if self.printNextGeneratedProgram {
                 print("--------- Randomly Sampled Generated Program -----------")
@@ -137,6 +142,7 @@ class TerminalUI {
         Correctness Rate:             \(String(format: "%.2f%%", stats.correctnessRate * 100)) (overall: \(String(format: "%.2f%%", stats.overallCorrectnessRate * 100)))
         Timeout Rate:                 \(String(format: "%.2f%%", stats.timeoutRate * 100)) (overall: \(String(format: "%.2f%%", stats.overallTimeoutRate * 100)))
         Crashes Found:                \(stats.crashingSamples)
+        Miscompilations Found:        \(stats.miscompilingSamples)
         Timeouts Hit:                 \(stats.timedOutSamples)
         Coverage:                     \(String(format: "%.2f%%", stats.coverage * 100))
         Avg. program size:            \(String(format: "%.2f", stats.avgProgramSize))

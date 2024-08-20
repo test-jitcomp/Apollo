@@ -128,6 +128,9 @@ public class Statistics: Module {
         fuzzer.registerEventListener(for: fuzzer.events.CrashFound) { _ in
             self.ownData.crashingSamples += 1
         }
+        fuzzer.registerEventListener(for: fuzzer.events.MiscompilationFound) { _ in
+            self.ownData.miscompilingSamples += 1
+        }
         fuzzer.registerEventListener(for: fuzzer.events.TimeOutFound) { _ in
             self.ownData.timedOutSamples += 1
             self.correctnessRate.add(0.0)
@@ -216,10 +219,10 @@ public class Statistics: Module {
                     let avgInstructionsAdded = String(format: "%.2f", mutator.avgNumberOfInstructionsGenerated).leftPadded(toLength: 5)
                     let samplesGenerated = String(mutator.totalSamples).leftPadded(toLength: maxSamplesGeneratedStringLength)
                     let crashesFound = mutator.crashesFound
-                    self.logger.info("    \(name) : Correctness rate: \(correctnessRate), Failure rate: \(failureRate), Interesting sample rate: \(interestingSamplesRate), Timeout rate: \(timeoutRate), Avg. # of instructions added: \(avgInstructionsAdded), Total # of generated samples: \(samplesGenerated), Total # of crashes found: \(crashesFound)")
+                    let miscompilationsFound = mutator.miscompilationsFound
+                    self.logger.info("    \(name) : Correctness rate: \(correctnessRate), Failure rate: \(failureRate), Interesting sample rate: \(interestingSamplesRate), Timeout rate: \(timeoutRate), Avg. # of instructions added: \(avgInstructionsAdded), Total # of generated samples: \(samplesGenerated), Total # of crashes found: \(crashesFound), Total # of miscompilations found: \(miscompilationsFound)")
                 }
             }
-
         }
         if fuzzer.config.logLevel.isAtLeast(.verbose) {
             fuzzer.timers.scheduleTask(every: 30 * Minutes) {

@@ -428,6 +428,13 @@ public class Fuzzer {
         }
     }
 
+    /// Imports a miscompiling program into this fuzzer.
+    ///
+    /// Similar to importProgram, but will make sure to generate a MiscompilationFound event even if the miscompilation does not reproduce.
+    public func importMiscompilation(_ program: Program, origin: ProgramOrigin) {
+        fatalError("Not yet implemented")
+    }
+
     /// Schedules the given corpus of programs to be imported into this fuzzer.
     ///
     /// Corpus import happens asynchronously as it may take a considerable amount of time (each program
@@ -591,6 +598,53 @@ public class Fuzzer {
             self.fuzzGroup.leave()
             processCommon(minimizedProgram)
         }
+    }
+
+    /// Process a program  that causes a miscompilation
+    func processMiscompilation(_ program: Program, withStdout stdout: String, withReferee referee: Program, withRefereeStdout rstdout: String, origin: ProgramOrigin, withExectime exectime: TimeInterval) {
+        let hasMiscompInfo = program.comments.at(.footer)?.contains("MISCOMPILATION INFO") ?? false
+        if !hasMiscompInfo {
+            program.comments.add("MISCOMPILATION INFO", at: .footer)
+            program.comments.add("===================", at: .footer)
+            if let tag = config.tag {
+                program.comments.add("INSTANCE TAG: \(tag)", at: .footer)
+            }
+            program.comments.add("REFEREE: \(referee.id)", at: .footer)
+            program.comments.add("STDOUT (SELF):", at: .footer)
+            program.comments.add(stdout.trimmingCharacters(in: .newlines), at: .footer)
+            program.comments.add("STDOUT (REFEREE):", at: .footer)
+            program.comments.add(rstdout.trimmingCharacters(in: .newlines), at: .footer)
+            program.comments.add("FUZZER ARGS: \(config.arguments.joined(separator: " "))", at: .footer)
+            program.comments.add("TARGET ARGS: \(runner.processArguments.joined(separator: " "))", at: .footer)
+            program.comments.add("CONTRIBUTORS: \(program.contributors.map({ $0.name }).joined(separator: ", "))", at: .footer)
+            program.comments.add("EXECUTION TIME: \(Int(exectime * 1000))ms", at: .footer)
+        }
+        assert(program.comments.at(.footer)?.contains("MISCOMPILATION INFO") ?? false)
+
+        let hasRefereeInfo = referee.comments.at(.footer)?.contains("MISCOMPILATION REFEREE INFO") ?? false
+        if !hasRefereeInfo {
+            referee.comments.add("MISCOMPILATION REFEREE INFO", at: .footer)
+            referee.comments.add("===========================", at: .footer)
+            if let tag = config.tag {
+                referee.comments.add("INSTANCE TAG: \(tag)", at: .footer)
+            }
+            referee.comments.add("STDOUT:", at: .footer)
+            referee.comments.add(rstdout.trimmingCharacters(in: .newlines), at: .footer)
+            referee.comments.add("FUZZER ARGS: \(config.arguments.joined(separator: " "))", at: .footer)
+            referee.comments.add("TARGET ARGS: \(runner.processArguments.joined(separator: " "))", at: .footer)
+            referee.comments.add("CONTRIBUTORS: \(referee.contributors.map({ $0.name }).joined(separator: ", "))", at: .footer)
+        }
+        assert(referee.comments.at(.footer)?.contains("MISCOMPILATION REFEREE INFO") ?? false)
+
+        // Check for flakiness
+        let execution = execute(program, withTimeout: self.config.timeout * 2, purpose: .checkForDeterministicBehavior)
+        if execution.outcome == .succeeded && execution.stdout == stdout {
+            dispatchEvent(events.MiscompilationFound, data: (program, referee, .deterministic, origin))
+        } else {
+            dispatchEvent(events.MiscompilationFound, data: (program, referee, .flaky, origin))
+        }
+
+        // TODO: Perhaps minimize the program?
     }
 
     /// Constructs a new ProgramBuilder using this fuzzing context.

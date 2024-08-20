@@ -89,13 +89,15 @@ public class JoNMutEngine: FuzzEngine {
             let mutantExec = execute0(mutant, withCaching: true)
 
             // The mutant program exit succeededly while with different results
+            // TODO: Develop a ProgramEvaluator to evaluate miscompilation and generate Aspects
             if mutantExec.outcome == .succeeded && mutantExec.stdout != seedExec.stdout {
-                // TODO: Save the miscompilation by (1) adding statistics (2) persisting the sample
-                print("Found miscompilation !!")
-                print("Seed   : \(seedExec.stdout)")
-                print("Mutant : \(mutantExec.stdout)")
-                // fuzzer.processMiscompilation(program, withSignal: termsig, withStderr: execution.stderr, withStdout: execution.stdout, origin: .local, withExectime: execution.execTime)
-                // program.contributors.generatedMiscompilationSample()
+                fuzzer.processMiscompilation(
+                    mutant, withStdout: mutantExec.stdout,
+                    withReferee: seed, withRefereeStdout: seedExec.stdout,
+                    origin: .local,
+                    withExectime: mutantExec.execTime
+                )
+                mutant.contributors.generatedMiscompilingSample()
             }
         }
     }

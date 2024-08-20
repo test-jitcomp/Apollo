@@ -78,11 +78,17 @@ enum MessageType: UInt32 {
     // A program that caused a crash. Only sent from a children to their parent.
     case crashingProgram     = 4
 
+    // The seed that act as the reference for a miscompilation. Only sent from a children to their parent.
+    case miscompilingReferee = 5
+
+    // A program that caused a miscompilation. Only sent from a children to their parent.
+    case miscompilingProgram = 6
+
     // A statistics package send by a child to a parent node.
-    case statistics          = 5
+    case statistics          = 7
 
     // Log messages are forwarded from child to parent nides.
-    case log                 = 6
+    case log                 = 8
 }
 
 /// Distributed fuzzing nodes can be configured to only share their corpus in one direction in the tree.
@@ -243,6 +249,12 @@ public class DistributedFuzzingParentNode: DistributedFuzzingNode, Module {
                 logger.warning("Received malformed program from child node: \(error)")
             }
 
+        case .miscompilingReferee:
+            fatalError("Not yet implemented!")
+
+        case .miscompilingProgram:
+            fatalError("Not yet implemented!")
+
         case .interestingProgram:
             guard shouldAcceptCorpusSamplesFromChildren() else {
                 logger.warning("Received corpus sample from child node but not configured to accept them (corpus synchronization mode is \(corpusSynchronizationMode)). Ignoring message.")
@@ -357,6 +369,11 @@ public class DistributedFuzzingChildNode: DistributedFuzzingNode, Module {
             self.sendProgram(ev.program, as: .crashingProgram)
         }
 
+        fuzzer.registerEventListener(for: fuzzer.events.MiscompilationFound) { ev in
+            self.sendProgram(ev.referee, as: .miscompilingReferee)
+            self.sendProgram(ev.program, as: .miscompilingProgram)
+        }
+
         fuzzer.registerEventListener(for: fuzzer.events.Shutdown) { _ in
             if !self.parentIsShuttingDown {
                 let shutdownGroup = DispatchGroup()
@@ -461,6 +478,8 @@ public class DistributedFuzzingChildNode: DistributedFuzzingNode, Module {
             }
 
         case .crashingProgram,
+             .miscompilingReferee,
+             .miscompilingProgram,
              .statistics,
              .log:
             logger.error("Received unexpected message: \(messageType)")

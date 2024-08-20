@@ -55,6 +55,9 @@ public class Events {
     /// Signals that a crashing program has been found. Dispatched after the crashing program has been minimized.
     public let CrashFound = Event<(program: Program, behaviour: CrashBehaviour, isUnique: Bool, origin: ProgramOrigin)>()
 
+    /// Signals that a miscompiling program has been found. Dispatched after the miscompiling program has been minimized.
+    public let MiscompilationFound = Event<(program: Program, referee: Program, behaviour: MiscompilationBehaviour, origin: ProgramOrigin)>()
+
     /// Signals that a program causing a timeout has been found.
     public let TimeOutFound = Event<Program>()
 
@@ -90,6 +93,12 @@ public class Events {
 
 /// Crash behavior of a program.
 public enum CrashBehaviour: String {
+    case deterministic = "deterministic"
+    case flaky         = "flaky"
+}
+
+/// Crash behavior of a program.
+public enum MiscompilationBehaviour: String {
     case deterministic = "deterministic"
     case flaky         = "flaky"
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /// Something that contributes to the creation of a program.
-/// This class is used to compute detailed statistics about correctness and timeout rates as well as the number of interesting or crashing programs generated, etc.
+/// This class is used to compute detailed statistics about correctness and timeout rates as well as the number of interesting or crashing or miscompiling programs generated, etc.
 public class Contributor: Hashable {
     // The name of this contributor so that it's easy to identify it in statistics.
     public let name: String
@@ -28,6 +28,8 @@ public class Contributor: Hashable {
     private var timedOutSamples = 0
     // Number of crashing programs produced.
     private var crashingSamples = 0
+    // Number of miscompiling programs produced.
+    private var miscompilingSamples = 0
 
     // Number of times this instance failed to generate/mutate code.
     private var failures = 0
@@ -58,6 +60,10 @@ public class Contributor: Hashable {
         crashingSamples += 1
     }
 
+    func generatedMiscompilingSample() {
+        miscompilingSamples += 1
+    }
+
 
     func addedInstructions(_ n: Int) {
         guard n > 0 else { return }
@@ -72,8 +78,12 @@ public class Contributor: Hashable {
         return crashingSamples
     }
 
+    public var miscompilationsFound: Int {
+        return miscompilingSamples
+    }
+
     public var totalSamples: Int {
-        return validSamples + interestingSamples + invalidSamples + timedOutSamples + crashingSamples
+        return validSamples + interestingSamples + invalidSamples + timedOutSamples + crashingSamples + miscompilingSamples
     }
 
     public var correctnessRate: Double {
@@ -130,6 +140,10 @@ extension Contributors {
 
     public func generatedCrashingSample() {
         forEach { $0.generatedCrashingSample() }
+    }
+
+    public func generatedMiscompilingSample() {
+        forEach { $0.generatedMiscompilingSample() }
     }
 
     public func generatedTimeOutSample() {

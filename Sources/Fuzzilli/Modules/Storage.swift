@@ -19,6 +19,7 @@ public class Storage: Module {
     private let storageDir: String
     private let crashesDir: String
     private let duplicateCrashesDir: String
+    private let miscompilationsDir: String
     private let corpusDir: String
     private let statisticsDir: String
     private let stateFile: String
@@ -35,6 +36,7 @@ public class Storage: Module {
         self.storageDir = storageDir
         self.crashesDir = storageDir + "/crashes"
         self.duplicateCrashesDir = storageDir + "/crashes/duplicates"
+        self.miscompilationsDir = storageDir + "/miscompilations"
         self.corpusDir = storageDir + "/corpus"
         self.failedDir = storageDir + "/failed"
         self.timeOutDir = storageDir + "/timeouts"
@@ -52,6 +54,7 @@ public class Storage: Module {
         do {
             try FileManager.default.createDirectory(atPath: crashesDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: duplicateCrashesDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(atPath: miscompilationsDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: corpusDir, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(atPath: statisticsDir, withIntermediateDirectories: true)
             if fuzzer.config.enableDiagnostics {
@@ -93,6 +96,20 @@ public class Storage: Module {
             } else {
                 self.storeProgram(ev.program, as: filename, in: self.duplicateCrashesDir)
             }
+        }
+
+        fuzzer.registerEventListener(for: fuzzer.events.MiscompilationFound) { ev in
+            let refereeDir = "\(self.miscompilationsDir)/referee_\(ev.referee.id)"
+            if !FileManager.default.fileExists(atPath: refereeDir) {
+                do {
+                    try FileManager.default.createDirectory(atPath: refereeDir, withIntermediateDirectories: true)
+                } catch {
+                    self.logger.fatal("Failed to create the miscompilation directory for referee-\(ev.referee.id). Is \(self.miscompilationsDir) writable by the current user?")
+                }
+                self.storeProgram(ev.referee, as: "referee", in: refereeDir)
+            }
+            let filename = "program_\(self.formatDate())_\(ev.program.id)_\(ev.behaviour.rawValue)"
+            self.storeProgram(ev.program, as: filename, in: refereeDir)
         }
 
         fuzzer.registerEventListener(for: fuzzer.events.InterestingProgramFound) { ev in
