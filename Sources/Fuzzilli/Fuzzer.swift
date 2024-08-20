@@ -52,6 +52,9 @@ public class Fuzzer {
     /// The JIT mutators used by the engine.
     public let jitMutators: WeightedList<JITMutator>
 
+    /// The JoN mutators used by the engine.
+    public let jonMutators: WeightedList<JoNMutator>
+
     /// The evaluator to score generated programs.
     public let evaluator: ProgramEvaluator
 
@@ -160,7 +163,7 @@ public class Fuzzer {
     /// Constructs a new fuzzer instance with the provided components.
     public init(
         configuration: Configuration, scriptRunner: ScriptRunner, engine: FuzzEngine,
-        mutators: WeightedList<Mutator>, jitMutators: WeightedList<JITMutator>,
+        mutators: WeightedList<Mutator>, jitMutators: WeightedList<JITMutator>, jonMutators: WeightedList<JoNMutator>,
         codeGenerators: WeightedList<CodeGenerator>, programTemplates: WeightedList<ProgramTemplate>, evaluator: ProgramEvaluator,
         environment: Environment, lifter: Lifter, corpus: Corpus, minimizer: Minimizer, queue: DispatchQueue? = nil
     ) {
@@ -174,6 +177,7 @@ public class Fuzzer {
         self.engine = engine
         self.mutators = mutators
         self.jitMutators = jitMutators
+        self.jonMutators = jonMutators
         self.codeGenerators = codeGenerators
         self.programTemplates = programTemplates
         self.evaluator = evaluator

@@ -30,7 +30,7 @@ Options:
     --profile=name               : Select one of several preconfigured profiles.
                                    Available profiles: \(profiles.keys).
     --jobs=n                     : Total number of fuzzing jobs. This will start a main instance and n-1 worker instances.
-    --engine=name                : The fuzzing engine to use. Available engines: "jitmut" (default), "mutation", "hybrid", "multi".
+    --engine=name                : The fuzzing engine to use. Available engines: "jitmut" (default), "jonmut", "mutation", "hybrid", "multi".
                                    Only the mutation engine should be regarded stable at this point.
     --corpus=name                : The corpus scheduler to use. Available schedulers: "basic" (default), "markov"
     --logLevel=level             : The log level to use. Valid values: "verbose", "info", "warning", "error", "fatal" (default: "info").
@@ -173,7 +173,7 @@ guard let logLevel = logLevelByName[logLevelName] else {
     configError("Invalid log level \(logLevelName)")
 }
 
-let validEngines = ["mutation", "jitmut", "hybrid", "multi"]
+let validEngines = ["mutation", "jitmut", "jonmut", "hybrid", "multi"]
 guard validEngines.contains(engineName) else {
     configError("--engine must be one of \(validEngines)")
 }
@@ -410,6 +410,14 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         logger.info("Enabled JIT mutators: \(jitMutators.map { $0.name })")
     }
 
+    // These mutators are specifically designed around JIT compilers, specifically JoNMutEngine
+    let jonMutators = WeightedList<JoNMutator>([
+        (InsNeuLoopMutator(),               4)
+    ])
+    if ["jonmut"].contains(engineName) {
+        logger.info("Enabled JoN mutators: \(jonMutators.map { $0.name })")
+    }
+
     // Engines to execute programs.
     let engine: FuzzEngine
     switch engineName {
@@ -434,6 +442,11 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
             numConsecutiveMutations: consecutiveMutations - 1,
             numConsecutiveJITMutations: 1,
             probJITMutation: 0.40
+        )
+    case "jonmut":
+        engine = JoNMutEngine(
+            numConsecutiveMutations: consecutiveMutations,
+            probGenNew: 0.25
         )
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
@@ -492,6 +505,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
                   engine: engine,
                   mutators: mutators,
                   jitMutators: jitMutators,
+                  jonMutators: jonMutators,
                   codeGenerators: codeGenerators,
                   programTemplates: programTemplates,
                   evaluator: evaluator,

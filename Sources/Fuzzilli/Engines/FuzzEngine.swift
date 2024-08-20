@@ -1,4 +1,5 @@
 // Copyright 2020 Google LLC
+// Copyright 2024 Cong Li (congli@smail.nju.edu.cn, cong.li@inf.ethz.ch)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,11 +34,18 @@ public class FuzzEngine: ComponentBase {
     }
 
     final func execute(_ program: Program, withTimeout timeout: UInt32? = nil) -> ExecutionOutcome {
+        return self.execute0(program, withTimeout: timeout, withCaching: false).outcome
+    }
+
+    final func execute0(_ program: Program, withTimeout timeout: UInt32? = nil, withCaching: Bool = false) -> Execution {
         let program = postProcessor?.process(program, for: fuzzer) ?? program
 
         fuzzer.dispatchEvent(fuzzer.events.ProgramGenerated, data: program)
 
-        let execution = fuzzer.execute(program, withTimeout: timeout, purpose: .fuzzing)
+        var execution = fuzzer.execute(program, withTimeout: timeout, purpose: .fuzzing)
+        if withCaching {
+            execution = CachedExecution(for: execution)
+        }
 
         switch execution.outcome {
             case .crashed(let termsig):
@@ -78,7 +86,7 @@ public class FuzzEngine: ComponentBase {
             ensureDeterministicExecutionOutcomeForDiagnostic(of: program)
         }
 
-        return execution.outcome
+        return execution
     }
 
     private final func ensureDeterministicExecutionOutcomeForDiagnostic(of program: Program) {

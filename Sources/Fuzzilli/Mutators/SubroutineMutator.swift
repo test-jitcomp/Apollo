@@ -53,6 +53,7 @@ public class SubroutineMutator: Mutator {
             Block(head: $0.head, tail: $0.tail, in: program.code)
         }
         
+        var mutable: [Bool] = []
         var candidates: [Block] = []
         
         // Select those subroutines that can be mutated. We will iterate all instructions
@@ -63,12 +64,12 @@ public class SubroutineMutator: Mutator {
                 subrtStartInstr = instr
             }
             
+            let isMutable = canMutate(subrtStartInstr, instr)
+            mutable.append(isMutable)
+            
             // We save a subroutines as a candidate if any of its instruction is mutable
-            if canMutate(subrtStartInstr, instr), let startInstr = subrtStartInstr {
-                if (
-                    candidates.isEmpty ||
-                    candidates.last?.head != startInstr.index
-                ) {
+            if isMutable, let startInstr = subrtStartInstr {
+                if candidates.last?.head != startInstr.index {
                     candidates.append(allSubrts[subrtIndex])
                 }
             }
@@ -102,8 +103,14 @@ public class SubroutineMutator: Mutator {
             while index < program.size {
                 let instr = program.code[index]
                 if toMutateIndex < toMutateSubrts.count && index == toMutateSubrts[toMutateIndex].head {
-                    let subrtInstrs = [Instruction](program.code[toMutateSubrts[toMutateIndex]])
-                    mutate(subrtInstrs, b)
+                    let subrtBlock = toMutateSubrts[toMutateIndex]
+                    let subrtInstrs = [Instruction](program.code[subrtBlock])
+                    let subrtMutable = [Bool](mutable[subrtBlock.head...subrtBlock.tail])
+                    precondition(
+                        subrtInstrs.count == subrtMutable.count,
+                        "The array subrtInstrs has different size from subrtMutable: \(subrtInstrs.count) vs \(subrtMutable.count)"
+                    )
+                    mutate(subrtInstrs, subrtMutable, b)
                     index = toMutateSubrts[toMutateIndex].tail + 1
                     toMutateIndex += 1
                 } else {
@@ -132,8 +139,8 @@ public class SubroutineMutator: Mutator {
     }
     
     /// Overridden by child classes.
-    /// Mutate a single subroutine
-    public func mutate(_ subrt: [Instruction], _ builder: ProgramBuilder) {
+    /// Mutate a single subroutine; where mutable saves the canMutate() results for this subroutine
+    public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ builder: ProgramBuilder) {
         fatalError("This method must be overridden")
     }
 }

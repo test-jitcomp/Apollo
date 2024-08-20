@@ -478,7 +478,7 @@ public struct Code: Collection {
     public func findAllBlockGroups(at depth: Int) -> [BlockGroup] {
         var groups = [(Int, BlockGroup)]()
     
-        var stack = Stack<[Int]>() // [depth, startIndex, endIndex]
+        var stack = Stack<[Int]>() // [depth, startIndex, ..., endIndex]
         for instr in self {
             if instr.isBlockStart && !instr.isBlockEnd {
                 // By definition, this is the start of a block group
@@ -492,7 +492,7 @@ public struct Code: Collection {
                 stack.top.append(instr.index)
                 if !instr.isBlockStart {
                     let tuple = stack.pop()
-                    groups.append((tuple[0], BlockGroup([tuple[1], tuple[2]], in: self)))
+                    groups.append((tuple[0], BlockGroup([tuple[1], tuple[tuple.count-1]], in: self)))
                 }
             }
         }
