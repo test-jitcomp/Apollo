@@ -56,6 +56,12 @@ import Foundation
 //   - the leaf nodes are only child nodes.
 //
 
+/// Errors that might happen between node communications
+fileprivate enum SyncError: Error {
+    case noRefereeTagError(String)
+    case noRefereeError(String)
+}
+
 /// The different messages supported by the distributed fuzzing protocol.
 enum MessageType: UInt32 {
     // Informs the other side that the sender is terminating.
@@ -176,6 +182,47 @@ public class DistributedFuzzingNode {
         // of them do.
         return fuzzer.corpus.supportsFastStateSynchronization
     }
+
+    static let COMMENT_COMMUNICATION_TAG = "SYNC-COMM-TAG: "
+
+    /// Get a sync tag for a program.
+    ///
+    /// This returns the very first tag that has given the key.
+    static func getSyncTag(of program: Program, forKey key: String) -> String? {
+        guard let comment = program.comments.at(.footer), !comment.isEmpty else {
+            return nil
+        }
+        for line in comment.split(separator: "\n", omittingEmptySubsequences: true) {
+            if line.hasPrefix(COMMENT_COMMUNICATION_TAG) {
+                let keyVal = line[
+                    line.index(line.startIndex, offsetBy: COMMENT_COMMUNICATION_TAG.count)..<line.endIndex
+                ]
+                let splits = keyVal.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                if splits[0] == key {
+                    return String(splits[1])
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Set a sync tag for a program
+    ///
+    /// This returns the very first tag that has given the key.
+    static func setSyncTag(for program: Program, withKey key: String, withVal val: String) {
+        program.comments.add("\(COMMENT_COMMUNICATION_TAG)\(key)=\(val)", at: .footer)
+    }
+
+    /// Remove all sync tags inside a program
+    static func rmAllSyncTags(of program: Program) {
+        guard let comment = program.comments.at(.footer) else {
+            return
+        }
+        let newLines = comment.split(separator: "\n", omittingEmptySubsequences: false).filter() {
+            !$0.hasPrefix(COMMENT_COMMUNICATION_TAG)
+        }
+        program.comments.set(newLines.joined(separator: "\n"), at: .footer)
+    }
 }
 
 /// A parent node in distributed fuzzing.
@@ -184,6 +231,9 @@ public class DistributedFuzzingNode {
 /// crashes and newly found interesting programs from their child nodes.
 public class DistributedFuzzingParentNode: DistributedFuzzingNode, Module {
     private let transport: DistributedFuzzingParentNodeTransport
+
+    /// List of all referees that have been saved
+    private var refereeCache = [String:Program]()
 
     /// List of all child nodes connected to us. They are identified by their UUID.
     private var children = Set<UUID>()
@@ -246,14 +296,35 @@ public class DistributedFuzzingParentNode: DistributedFuzzingNode, Module {
                 let program = try Program(from: proto)
                 fuzzer.importCrash(program, origin: .child(id: child))
             } catch {
-                logger.warning("Received malformed program from child node: \(error)")
+                logger.warning("Received malformed crashing program from child node: \(error)")
             }
 
         case .miscompilingReferee:
-            fatalError("Not yet implemented!")
+            do {
+                let proto = try Fuzzilli_Protobuf_Program(serializedBytes: data)
+                let referee = try Program(from: proto)
+                refereeCache.updateValue(referee, forKey: "\(referee.id)")
+            } catch {
+                logger.warning("Received malformed referee program from child node: \(error)")
+            }
 
         case .miscompilingProgram:
-            fatalError("Not yet implemented!")
+            do {
+                let proto = try Fuzzilli_Protobuf_Program(serializedBytes: data)
+                let program = try Program(from: proto)
+                if let refereeId = DistributedFuzzingNode.getSyncTag(of: program, forKey: "REFEREE") {
+                    if let referee = refereeCache[refereeId] {
+                        DistributedFuzzingNode.rmAllSyncTags(of: program)
+                        fuzzer.importMiscompilation(program, referee: referee, origin: .child(id: child))
+                    } else {
+                        throw SyncError.noRefereeError("No referee program with id \(refereeId) found in our referee cache")
+                    }
+                } else {
+                    throw SyncError.noRefereeTagError("No REFEREE sync tag found in the miscompiling program with id \(program.id)")
+                }
+            } catch {
+                logger.warning("Received malformed micompiling program from child node: \(error)")
+            }
 
         case .interestingProgram:
             guard shouldAcceptCorpusSamplesFromChildren() else {
@@ -266,7 +337,7 @@ public class DistributedFuzzingParentNode: DistributedFuzzingNode, Module {
                 let program = try Program(from: proto)
                 fuzzer.importProgram(program, enableDropout: false, origin: .child(id: child))
             } catch {
-                logger.warning("Received malformed program from child node: \(error)")
+                logger.warning("Received malformed interesting program from child node: \(error)")
             }
 
         case .statistics:
@@ -371,6 +442,8 @@ public class DistributedFuzzingChildNode: DistributedFuzzingNode, Module {
 
         fuzzer.registerEventListener(for: fuzzer.events.MiscompilationFound) { ev in
             self.sendProgram(ev.referee, as: .miscompilingReferee)
+            // Perhaps add a comment at the footer of the program to notify our parent
+            DistributedFuzzingNode.setSyncTag(for: ev.program, withKey: "REFEREE", withVal: "\(ev.referee.id)")
             self.sendProgram(ev.program, as: .miscompilingProgram)
         }
 

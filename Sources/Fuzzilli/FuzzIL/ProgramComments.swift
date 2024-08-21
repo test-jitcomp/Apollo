@@ -62,6 +62,12 @@ public struct ProgramComments {
         comments[key] = comment
     }
 
+    @discardableResult
+    public mutating func set(_ content: String, at position: CommentPosition) -> String? {
+        let key = position.toKey()
+        return comments.updateValue(content, forKey: key)
+    }
+
     public mutating func removeAll() {
         comments.removeAll()
     }

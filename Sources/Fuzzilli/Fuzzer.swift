@@ -431,8 +431,33 @@ public class Fuzzer {
     /// Imports a miscompiling program into this fuzzer.
     ///
     /// Similar to importProgram, but will make sure to generate a MiscompilationFound event even if the miscompilation does not reproduce.
-    public func importMiscompilation(_ program: Program, origin: ProgramOrigin) {
-        fatalError("Not yet implemented")
+    public func importMiscompilation(_ program: Program, referee: Program, origin: ProgramOrigin) {
+        dispatchPrecondition(condition: .onQueue(queue))
+
+        // Execute both referee and program to get their results
+        let refExec = execute(referee, purpose: .programImport, withCaching: true)
+        if case .crashed(let termsig) = refExec.outcome {
+            // Our referee unexpectedly crashed
+            processCrash(referee, withSignal: termsig, withStderr: refExec.stderr, withStdout: refExec.stdout, origin: origin, withExectime: refExec.execTime)
+        }
+
+        let progExec = execute(program, purpose: .programImport, withCaching: true)
+        if case .crashed(let termsig) = progExec.outcome {
+            // Our program unexpectedly crashed
+            processCrash(program, withSignal: termsig, withStderr: progExec.stderr, withStdout: progExec.stdout, origin: origin, withExectime: progExec.execTime)
+        }
+
+        if (
+            refExec.outcome == .succeeded &&
+            progExec.outcome == .succeeded &&
+            refExec.stdout != progExec.stdout
+        ) {
+            // The imported is indeed a miscompilation
+            processMiscompilation(program, withStdout: progExec.stdout, withReferee: referee, withRefereeStdout: refExec.stdout, origin: origin, withExectime: progExec.execTime)
+        } else {
+            // We have imported a flaky miscompilation
+            dispatchEvent(events.MiscompilationFound, data: (program: program, referee: referee, behaviour: .flaky, origin: origin))
+        }
     }
 
     /// Schedules the given corpus of programs to be imported into this fuzzer.
@@ -474,15 +499,19 @@ public class Fuzzer {
     ///   - program: The FuzzIL program to execute.
     ///   - timeout: The timeout after which to abort execution. If nil, the default timeout of this fuzzer will be used.
     ///   - purpose: The purpose of this program execution.
+    ///   - caching: Cache the resuling execution
     /// - Returns: An Execution structure representing the execution outcome.
-    public func execute(_ program: Program, withTimeout timeout: UInt32? = nil, purpose: ExecutionPurpose) -> Execution {
+    public func execute(_ program: Program, withTimeout timeout: UInt32? = nil, purpose: ExecutionPurpose, withCaching caching: Bool = false) -> Execution {
         dispatchPrecondition(condition: .onQueue(queue))
         assert(runner.isInitialized)
 
         let script = lifter.lift(program)
 
         dispatchEvent(events.PreExecute, data: (program, purpose))
-        let execution = runner.run(script, withTimeout: timeout ?? config.timeout)
+        var execution = runner.run(script, withTimeout: timeout ?? config.timeout)
+        if caching {
+            execution = CachedExecution(for: execution)
+        }
         dispatchEvent(events.PostExecute, data: execution)
 
         return execution
