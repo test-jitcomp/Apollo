@@ -53,8 +53,7 @@ public class JITMutator: BaseInstructionMutator {
     final public override func canMutate(_ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
         return (
-            // It's wired that some instructions are not in the .javascript context
-            // (removing this condition check may cause assertion failures...)
+            // We must be in a normal .javascript context
             contextAnalyzer.context.contains(.javascript) &&
             // Basically, we cannot apply mutation inside a loop, otherwise,
             // adding new loops may cause the program to run overly long.

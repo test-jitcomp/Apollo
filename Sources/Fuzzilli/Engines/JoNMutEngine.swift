@@ -15,12 +15,68 @@
 import Foundation
 
 
+/// A mutator which assists JoN mutation by inserting a checksum variable into a program.
+fileprivate class InsertChksumMutator: Mutator {
+
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        // Firstly, define a checksum variable: "var chksumContainer = [0xAB011]".
+        // We create an array as the container for our checksum as if we used a
+        // checksum variable, of which the operations are performed in the try-block,
+        // is not visible in the finally-block in FuzzIL.
+        let chkSumContainer = b.createIntArray(with: [0xAB0110])
+        var contextAnalyzer = ContextAnalyzer()
+
+        // Let's insert a try-catch to ensure that the checksum are always printed
+        b.buildTryCatchFinally(tryBody: {
+            b.adopting(from: program) {
+                for instr in program.code {
+                    b.adopt(instr)
+                    contextAnalyzer.analyze(instr)
+                    // Perform some operations over the checksum:
+                    // "checkSumContainer[0] = operations involving chksumContainer[0]"
+                    if probability(0.2) && contextAnalyzer.context.isSuperset(of: .javascript) {
+                        let chkSumVal = b.binary(
+                            b.getElement(0, of: chkSumContainer),
+                            b.randomVariable(ofType: .integer) ?? b.loadInt(b.randomInt()),
+                            with: withEqualProbability(
+                                {.Add}, {.Sub}, {.Mul},
+                                {.BitAnd}, {.BitOr}, {.Xor},
+                                {.LogicOr}, {.LogicAnd}
+                            )
+                        )
+                        b.setElement(0, of: chkSumContainer, to: chkSumVal)
+                    }
+                }
+            }
+        }, finallyBody: {
+            // Finally, print the value of the checksum:
+            // "console.log(`Checksum: ${checkSumContainer[0]}`)"
+            b.callMethod(
+                "log",
+                on: b.loadBuiltin("console"),
+                withArgs: [
+                    b.binary(
+                        b.loadString("Checksum: "),
+                        b.getElement(0, of: chkSumContainer),
+                        with: .Add
+                    )
+                ]
+            )
+        })
+
+        return b.finalize()
+    }
+}
+
 /// The core fuzzer responsible for generating and executing programs with CSE/JoNM, specifically for JIT compilers.
 ///
 /// More details are available in the SOSP'23 paper: Validating JIT Compilers via Compilation Space Exploration.
 public class JoNMutEngine: FuzzEngine {
     // The number of consecutive mutations to apply to a sample.
     private let numConsecutiveMutations: Int
+
+    // The mutator which helps add a checksum before applying JoN mutations
+    private let chksumInserter = InsertChksumMutator()
 
     public init(numConsecutiveMutations: Int, probGenNew: Double) {
         self.numConsecutiveMutations = numConsecutiveMutations
@@ -48,8 +104,11 @@ public class JoNMutEngine: FuzzEngine {
     /// as the intermediate results do not cause a runtime exception.
     public override func fuzzOne(_ group: DispatchGroup) {
         // TODO: Are there any random behaviors in seed generation? Perhaps removing all randomXxx builtins?
-        // TODO: Also looks like the generated program does not print anything. Maybe it's good to find/inject an Int variable and print it's value in the end while preparing the seed program.
-        var seed: Program = randomProgramForJoNMutating()
+        let rawSeed = randomProgramForJoNMutating()
+
+        guard let seed = prepareForJoNMutating(rawSeed) else {
+            fatalError("Failed to inserting checksum variable into the program")
+        }
 
         // Execute the seed program
         let seedExec = execute0(seed, withCaching: true)
@@ -64,7 +123,6 @@ public class JoNMutEngine: FuzzEngine {
             let maxAttempts: Int = 5
             var mutantOrNil: Program? = nil
             for _ in 0..<maxAttempts {
-                seed = prepareForMutating(seed)
                 if let result = mutator.mutate(seed, for: fuzzer) {
                     // Success!
                     result.contributors.formUnion(seed.contributors)
@@ -102,12 +160,12 @@ public class JoNMutEngine: FuzzEngine {
         }
     }
 
-    /// Pre-processing of programs to facilitate mutations on them.
-    private func prepareForMutating(_ program: Program) -> Program {
-        let b = fuzzer.makeBuilder()
-        b.buildPrefix()
-        b.append(program)
-        return b.finalize()
+    /// Pre-processing of programs to facilitate JoN mutations on them.
+    ///
+    /// Specifically, to prevent that the program does not print, we manually
+    /// insert a checksum variable into it and print its value in the end.
+    private func prepareForJoNMutating(_ program: Program) -> Program? {
+        return chksumInserter.mutate(program, for: fuzzer)!
     }
 
     /// Pick a program (without JoN mutations) for JoN mutation

@@ -62,8 +62,7 @@ public class JoNMutator: SubroutineMutator {
         contextAnalyzer.analyze(i)
         deadCodeAnalyzer.analyze(i)
         return (
-            // It's wired that some instructions are not in the .javascript context
-            // (removing this condition check may cause assertion failures...)
+            // We must be in a normal .javascript context
             contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
             !contextAnalyzer.context.contains(.loop) &&
