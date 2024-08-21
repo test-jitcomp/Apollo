@@ -82,25 +82,25 @@ public class JoNMutator: SubroutineMutator {
 
 /// A JoN mutator that inserts a neutral loop into a random program point of a subroutine
 public class InsNeuLoopMutator: JoNMutator {
-    var program: Program? = nil
+    var progUnderMut: Program? = nil
     
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         super.beginMutation(of: p, using: b)
-        program = p
+        progUnderMut = p
     }
     
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
-        return s != nil // We can mutate any subroutines
+        return s != nil && !contextAnalyzer.context.contains(.objectLiteral) // We can mutate any subroutines
     }
     
     override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
         // We can only insert our loop before instructions that are mutable
-        let insertAt = chooseUniform(from: (1..<subrt.count).filter({ mutable[$0] }))
+        let insertAt = chooseUniform(from: (0..<subrt.count-1).filter({ mutable[$0] }))
         for (index, instr) in subrt.enumerated() {
-            if index == insertAt {
-                b.append(b.randomNeutralLoop(forMutating: program!))
-            }
             b.adopt(instr)
+            if index == insertAt {
+                b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
+            }
         }
     }
 }
