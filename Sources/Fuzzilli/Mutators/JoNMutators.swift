@@ -51,19 +51,24 @@ extension ProgramBuilder {
 /// A JoN mutator is basically a subroutine mutator
 public class JoNMutator: SubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
+    var deadCodeAnalyzer = DeadCodeAnalyzer()
     
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
+        deadCodeAnalyzer = DeadCodeAnalyzer()
     }
     
     final public override func canMutate(_ s: Instruction?, _ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
+        deadCodeAnalyzer.analyze(i)
         return (
             // It's wired that some instructions are not in the .javascript context
             // (removing this condition check may cause assertion failures...)
             contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
             !contextAnalyzer.context.contains(.loop) &&
+            // We cannot be any dead code
+            !deadCodeAnalyzer.currentlyInDeadCode &&
             // We then delegate to our children for further checks
             canMutateSubroutine(s, i)
         )
