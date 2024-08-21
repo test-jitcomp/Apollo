@@ -15,59 +15,6 @@
 import Foundation
 
 
-/// A mutator which assists JoN mutation by inserting a checksum variable into a program.
-fileprivate class InsertChksumMutator: Mutator {
-
-    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
-        // Firstly, define a checksum variable: "var chksumContainer = [0xAB011]".
-        // We create an array as the container for our checksum as if we used a
-        // checksum variable, of which the operations are performed in the try-block,
-        // is not visible in the finally-block in FuzzIL.
-        let chkSumContainer = b.createIntArray(with: [0xAB0110])
-        var contextAnalyzer = ContextAnalyzer()
-
-        // Let's insert a try-catch to ensure that the checksum are always printed
-        b.buildTryCatchFinally(tryBody: {
-            b.adopting(from: program) {
-                for instr in program.code {
-                    b.adopt(instr)
-                    contextAnalyzer.analyze(instr)
-                    // Perform some operations over the checksum:
-                    // "checkSumContainer[0] = operations involving chksumContainer[0]"
-                    if probability(0.2) && contextAnalyzer.context.isSuperset(of: .javascript) {
-                        let chkSumVal = b.binary(
-                            b.getElement(0, of: chkSumContainer),
-                            b.randomVariable(ofType: .integer) ?? b.loadInt(b.randomInt()),
-                            with: withEqualProbability(
-                                {.Add}, {.Sub}, {.Mul},
-                                {.BitAnd}, {.BitOr}, {.Xor},
-                                {.LogicOr}, {.LogicAnd}
-                            )
-                        )
-                        b.setElement(0, of: chkSumContainer, to: chkSumVal)
-                    }
-                }
-            }
-        }, finallyBody: {
-            // Finally, print the value of the checksum:
-            // "console.log(`Checksum: ${checkSumContainer[0]}`)"
-            b.callMethod(
-                "log",
-                on: b.loadBuiltin("console"),
-                withArgs: [
-                    b.binary(
-                        b.loadString("Checksum: "),
-                        b.getElement(0, of: chkSumContainer),
-                        with: .Add
-                    )
-                ]
-            )
-        })
-
-        return b.finalize()
-    }
-}
-
 /// The core fuzzer responsible for generating and executing programs with CSE/JoNM, specifically for JIT compilers.
 ///
 /// More details are available in the SOSP'23 paper: Validating JIT Compilers via Compilation Space Exploration.

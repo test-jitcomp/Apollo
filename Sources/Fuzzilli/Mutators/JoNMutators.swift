@@ -48,11 +48,74 @@ extension ProgramBuilder {
     }
 }
 
+/// A mutator which assists JoN mutation by inserting a checksum variable into a program.
+class InsertChksumMutator: Mutator {
+
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        // As not all environments defined console; let's we do some detection.
+        // TODO: Perhaps making it as a JavaScript Prefix??
+        b.eval(
+            "const __output__ = ("                      +
+            "   (globalThis || global)['console'] &&"   +
+            "   (globalThis || global)['console'].log"  +
+            ") || (globalThis || global)['print'];"
+        )
+
+        // Firstly, define a checksum variable: "var chksumContainer = [0xAB011]".
+        // We create an array as the container for our checksum as if we used a
+        // checksum variable, of which the operations are performed in the try-block,
+        // is not visible in the finally-block in FuzzIL.
+        let chkSumContainer = b.createIntArray(with: [0xAB0110])
+        var contextAnalyzer = ContextAnalyzer()
+
+        // Let's insert a try-catch to ensure that the checksum are always printed
+        b.buildTryCatchFinally(tryBody: {
+            b.adopting(from: program) {
+                for instr in program.code {
+                    b.adopt(instr)
+                    contextAnalyzer.analyze(instr)
+                    // Perform some operations over the checksum:
+                    // "checkSumContainer[0] = operations involving chksumContainer[0]"
+                    if probability(0.2) && contextAnalyzer.context.isSuperset(of: .javascript) {
+                        let chkSumVal = b.binary(
+                            b.getElement(0, of: chkSumContainer),
+                            b.randomVariable(ofType: .integer) ?? b.loadInt(b.randomInt()),
+                            with: withEqualProbability(
+                                {.Add}, {.Sub}, {.Mul},
+                                {.BitAnd}, {.BitOr}, {.Xor},
+                                {.LogicOr}, {.LogicAnd}
+                            )
+                        )
+                        b.setElement(0, of: chkSumContainer, to: chkSumVal)
+                    }
+                }
+            }
+        }, finallyBody: {
+            // Finally, print the value of the checksum:
+            // "print(`Checksum: ${checkSumContainer[0]}`)"
+            let chksumMsg = b.binary(
+                b.loadString("Checksum: "),
+                b.getElement(0, of: chkSumContainer),
+                with: .Add
+            )
+            b.eval("__output__(%@)", with: [chksumMsg])
+        })
+
+        return b.finalize()
+    }
+}
+
 /// A JoN mutator is basically a subroutine mutator
 public class JoNMutator: SubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
     var deadCodeAnalyzer = DeadCodeAnalyzer()
-    
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        // As we will add a try-catch block over the whole program.
+        // Our mutations for subroutines are performed at depth 1.
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, mutateSubrtsAtDepth: 1)
+    }
+
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
         deadCodeAnalyzer = DeadCodeAnalyzer()

@@ -41,15 +41,19 @@ extension Code {
 public class SubroutineMutator: Mutator {
     let maxSimultaneousMutations: Int
     
-    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+    /// The depth of the subroutines that we mutate
+    let mutateSubrtsAtDepth: Int
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1, mutateSubrtsAtDepth: Int = 0) {
         self.maxSimultaneousMutations = maxSimultaneousMutations
+        self.mutateSubrtsAtDepth = mutateSubrtsAtDepth
         super.init(name: name)
     }
     
     public override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         beginMutation(of: program, using: b)
         
-        let allSubrts: [Block] = program.code.findAllSubroutines(at: 0).map{
+        let allSubrts: [Block] = program.code.findAllSubroutines(at: mutateSubrtsAtDepth).map{
             Block(head: $0.head, tail: $0.tail, in: program.code)
         }
         
