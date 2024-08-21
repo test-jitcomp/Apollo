@@ -188,6 +188,7 @@ public func makeMockFuzzer(config maybeConfiguration: Configuration? = nil, engi
 
     // the JoN mutators to use for this fuzzing engine.
     let jonMutators = WeightedList<JoNMutator>([
+        (InsNeuLoopMutator(),               1),
     ])
 
     let engine = maybeEngine ?? MutationEngine(numConsecutiveMutations: 5)
