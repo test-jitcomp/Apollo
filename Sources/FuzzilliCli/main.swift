@@ -98,6 +98,9 @@ Options:
     --additionalArguments=args   : Pass additional arguments to the JS engine. If multiple arguments are passed, they should be separated by a comma.
     --tag=tag                    : Optional string tag associated with this instance which will be stored in the settings.json file as well as in crashing samples.
                                    This can for example be used to remember the target revision that is being fuzzed.
+    --compatLifting              : Inject some surrounding context (e.g., global) when liftinng FuzzIL programs to JavaScript.
+                                   This, in addition to Profiles, provides flexibility to inject code in order to make compatibility between JavaScript engines.
+                                   This is by default disabled for all fuzz engines except for jonmut.
 """)
     exit(0)
 }
@@ -153,6 +156,7 @@ let swarmTesting = args.has("--swarmTesting")
 let argumentRandomization = args.has("--argumentRandomization")
 let additionalArguments = args["--additionalArguments"] ?? ""
 let tag = args["--tag"]
+let compatLifting = engineName == "jonmut" || args.has("--compatLifting")
 
 guard numJobs >= 1 else {
     configError("Must have at least 1 job")
@@ -479,9 +483,20 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
     }
 
     // A lifter to translate FuzzIL programs to JavaScript.
-    let lifter = JavaScriptLifter(prefix: profile.codePrefix,
-                                  suffix: profile.codeSuffix,
-                                  ecmaVersion: profile.ecmaVersion)
+    let lifter: JavaScriptLifter
+    if compatLifting {
+        lifter = JavaScriptCompatLifter(
+            prefix: profile.codePrefix,
+            suffix: profile.codeSuffix,
+            ecmaVersion: profile.ecmaVersion
+        )
+    } else {
+        lifter = JavaScriptLifter(
+            prefix: profile.codePrefix,
+            suffix: profile.codeSuffix,
+            ecmaVersion: profile.ecmaVersion
+        )
+    }
 
     // The evaluator to score produced samples.
     let evaluator = ProgramCoverageEvaluator(runner: runner)

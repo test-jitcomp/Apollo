@@ -55,17 +55,6 @@ extension ProgramBuilder {
 class InsertChksumMutator: Mutator {
 
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
-        // As not all environments defined console; let's we do some detection.
-        // TODO: Perhaps making it as a JavaScript Prefix??
-        let fn_out = "__apollo_out__"
-
-        b.eval(
-            "const \(fn_out) = ("                       +
-            "   (globalThis || global)['console'] &&"   +
-            "   (globalThis || global)['console'].log"  +
-            ") || (globalThis || global)['print'];"
-        )
-
         // Firstly, define a checksum variable: "var chksumContainer = [0xAB011]".
         // We create an array as the container for our checksum as if we used a
         // checksum variable, of which the operations are performed in the try-block,
@@ -103,7 +92,7 @@ class InsertChksumMutator: Mutator {
                 b.getElement(0, of: chkSumContainer),
                 with: .Add
             )
-            b.eval("\(fn_out)(%@)", with: [chksumMsg])
+            b.eval("__compat_out__(%@)", with: [chksumMsg])
         })
 
         return b.finalize()
