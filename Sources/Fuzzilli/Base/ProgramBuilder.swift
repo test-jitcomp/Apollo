@@ -954,9 +954,41 @@ public class ProgramBuilder {
         internalAppend(Instruction(instr.op, inouts: adopt(instr.inouts)))
     }
 
-    /// Replicate (adopt inputs but create new outputs) an instruction from ourselves (the builder) or the program that is currently configured for adoption into the program being constructed.
-    public func replicate(_ instr: Instruction) {
-        emit(instr.op, withInputs: adopt(instr.inputs))
+    /// Adopt the variable and define the adopted variable as null.
+    ///
+    /// This method are helpful for cases where an instruction will be made into an inner scope. After mading inner, the
+    /// instruction's output variables are no longer visible to its subsequent instructions who use the output variables in
+    /// an outer scope. This method, together with replicate(), help to adopt and define the output variable.
+    ///
+    /// For example, if we are about to make `i1` in an  inner scope like a loop while keeping `i2` (who depends on
+    /// `i1`'s output variables) in the outer scope,  the following code does not work as the adoption of `i1` makes
+    /// its output variable only visible in the loop.
+    ///
+    ///     b.buildRepeatLoop(n: 10) {
+    ///        b.adopt(i1)
+    ///     }
+    ///     b.adopt(i2) // doesn't work
+    ///
+    /// Instead, with `adoptAndDefine`, we should:
+    ///
+    ///     b.adoptAndDefine(i1.outputs)
+    ///     b.buildRepeatLoop(n: 10) {
+    ///        b.replicate(i1)
+    ///     }
+    ///     b.adopt(i2)
+    ///
+    /// Afterwards, all subsequent instructions using `i1.outputs` are redirected to `outs`.
+    public func adoptAndDefine(for variable: Variable) -> Variable {
+        let adopted = adopt(variable)
+        internalAppend(Instruction(LoadNull(), inouts: [adopted]))
+        return adopted
+    }
+
+    /// Replicate (adopt inputs but create new outputs) an instruction from ourselves (the builder) or the program that is
+    /// currently configured for adoption into the program being constructed and return its new output.
+    @discardableResult
+    public func replicate(_ instr: Instruction) -> [Variable] {
+        return [Variable](emit(instr.op, withInputs: adopt(instr.inputs)).outputs)
     }
 
     /// Append an instruction at the current position.
