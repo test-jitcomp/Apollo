@@ -147,7 +147,22 @@ public class JoNMutator: SubroutineMutator {
     }
 }
 
-/// A JoN mutator that inserts a neutral loop into a random program point of a subroutine
+/// A JoN mutator that inserts a neutral loop into a random program point of a subroutine,
+/// trying to make the subroutine JIT compiled.
+///
+/// In particular, the neutral loop does not involve any connections to the program under
+/// mutation and has no side effect which ensures the program after mutation being in the
+/// same semantics as the program before being mutated.
+///
+///     subroutine() {
+///       ...
+///       try {
+///         for (...) {}
+///       } catch {}
+///       ...
+///     }
+///
+/// The inserted neutral loop are wrapped by a try-catch block to dismiss any possble exceptions.
 public class InsNeuLoopMutator: JoNMutator {
     var progUnderMut: Program? = nil
     
