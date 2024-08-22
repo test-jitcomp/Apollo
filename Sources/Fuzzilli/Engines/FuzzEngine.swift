@@ -42,10 +42,7 @@ public class FuzzEngine: ComponentBase {
 
         fuzzer.dispatchEvent(fuzzer.events.ProgramGenerated, data: program)
 
-        var execution = fuzzer.execute(program, withTimeout: timeout, purpose: .fuzzing)
-        if withCaching {
-            execution = CachedExecution(for: execution)
-        }
+        let execution = fuzzer.execute(program, withTimeout: timeout, purpose: .fuzzing, withCaching: withCaching)
 
         switch execution.outcome {
             case .crashed(let termsig):
