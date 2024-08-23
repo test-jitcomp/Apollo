@@ -291,3 +291,140 @@ public class WrapInstrMutator: JoNMutator {
         progUnderMut = nil
     }
 }
+
+/// A JoN mutator that pre-calls a subroutine to make it JIT compile.
+///
+/// In particular, the pre-call is inserted right before a call to the subroutine. To avoid change the semantics
+/// of the program, the mutator inserts a neutral prologue into the subroutine. The prologue is controled by
+/// a flag, which when set to true, drives the subroutine to early return.
+///
+///     func f(...) {
+///       ...
+///     }
+///
+///     f(...)
+///
+///       v
+///
+///     func f(...) {
+///       if flag {
+///          ...
+///          return
+///       }
+///       ...
+///     }
+///
+///     flag = true
+///     try {
+///       for (...) {
+///         ...
+///         f(...)
+///       }
+///     } catch {
+///       // do nothing
+///     }
+///      finally {
+///       flag = false
+///     }
+///
+///     f(...)
+///
+/// To ensure JIT compilation, the flag is set to true and the subroutine is executed mutiple times. After that,
+/// the flag is set to false and the call is re-executed.
+public class CallSubrtMutator: JoNMutator {
+    var progUnderMut: Program? = nil
+
+    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
+        super.beginMutation(of: p, using: b)
+        progUnderMut = p
+    }
+
+    override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
+        return (
+            s != nil &&  // We can mutate any subroutines
+            ( // TODO: Support more function types
+                s!.op is BeginPlainFunction ||
+                s!.op is BeginArrowFunction
+            ) && // We currently only support these types
+            !contextAnalyzer.context.contains(.objectLiteral)
+        )
+    }
+
+    override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
+        guard let progUnderMut = progUnderMut else {
+            return
+        }
+
+        // Create a flag; again we insert it into a container
+        let flagContainer = b.createArray(with: [b.loadBool(false)])
+
+        // Adopt the subroutine first; this
+        b.adopt(subrt[0])
+
+        let subrtBeforeMut = subrt[0].output
+        let subrtAfterMut = b.adopt(subrtBeforeMut)
+
+        // Insert a neutral prologue into the subrt first
+        let prologue = b.randomProgram(n: 6)
+        b.adopting(from: prologue) {
+            b.buildIf(b.compare(
+                b.getElement(0, of: flagContainer),
+                with: b.loadBool(true),
+                using: .equal
+            )) {
+                for instr in prologue.code {
+                    b.adopt(instr)
+                }
+                b.doReturn(b.loadNull())
+            }
+        }
+
+        // Adopt the rest instructions
+        for instr in subrt[1..<subrt.count] {
+            b.adopt(instr)
+        }
+
+        // Insert a immediate call to the subrt to JIT compile it
+
+        // Find the very first call to the subroutine; we'll reuse it.
+        var subrtCall: Instruction? = nil
+        for instr in progUnderMut.code {
+            if instr.isCall && instr.inputs[0] == subrtBeforeMut {
+                subrtCall = instr
+                break
+            }
+        }
+
+        // Set to begin calling the prologue
+        b.setElement(0, of: flagContainer, to: b.loadBool(true))
+        b.buildTryCatchFinally(tryBody: {
+            b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
+                b.append(b.randomProgram(n: 6))
+                if let subrtCall = subrtCall {
+                    // Let's reuse the types of the first call so that the first
+                    // call is called in the JIT stack (but might be deoptimized,
+                    // depending on the JIT compilier's compilation strategy).
+                    b.callFunction(subrtAfterMut, withArgs: b.randomVariables(
+                        ofTypes: subrtCall.inputs[1..<subrtCall.numInputs].map({ b.type(of: $0) })
+                    ))
+                } else {
+                    // Let's build some random arguments
+                    b.callFunction(subrtAfterMut, withArgs: b.randomArguments(
+                        forCalling: subrtAfterMut
+                    ))
+                }
+            }
+        }, catchBody: { _ in
+            // We dismiss the exception to avoid any unexpected behaviors
+            return
+        }, finallyBody: {
+            // Set to stop calling the prologue
+            b.setElement(0, of: flagContainer, to: b.loadBool(false))
+        })
+    }
+
+    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+        super.endMutation(of: p, using: b)
+        progUnderMut = nil
+    }
+}
