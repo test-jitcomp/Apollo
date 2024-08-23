@@ -52,6 +52,20 @@ extension ProgramBuilder {
 }
 
 /// A mutator which assists JoN mutation by inserting a checksum variable into a program.
+///
+///     prog
+///
+///      v
+///
+///     chksum = 0xAB0110;
+///     try {
+///        prog's instrs and ops to chksum
+///     } finally {
+///       print(chksum)
+///     }
+///
+/// The program is unrolled with some operations to chksum are inserted.
+/// The try-finally block ensures that the chksum are always output.
 class InsertChksumMutator: Mutator {
 
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
@@ -148,12 +162,12 @@ public class JoNMutator: SubroutineMutator {
 /// mutation and has no side effect which ensures the program after mutation being in the
 /// same semantics as the program before being mutated.
 ///
-///     subroutine() {
+///     f() {
 ///       ...
 ///       try {
-///         for (...) {}
+///         for (...) {}                   // Try OSR-compiling f()
 ///       } catch {
-///         // do nothing
+///         // do nothing                  // Dismiss any unexpected
 ///       }
 ///       ...
 ///     }
@@ -200,14 +214,14 @@ public class InsNeuLoopMutator: JoNMutator {
 ///
 ///     flag = false
 ///     try {
-///       for (...) {
+///       for (...) {                               // Try OSR-compiling the subroutine
 ///         ...
-///         if !flag { instr; flag = true; }
+///         if !flag { instr; flag = true; }        // Ensure instr is executed only once
 ///       }
 ///     } catch {
-///       // do nothing
+///       // do nothing                             // Dismiss any unexpected
 ///     } finally {
-///       if !flag { instr; flag = true; }
+///       if !flag { instr; flag = true; }          // Ensure instr is executed only once
 ///     }
 ///
 /// The flag is to control the execution of the instruction being wrapped.
@@ -307,29 +321,29 @@ public class WrapInstrMutator: JoNMutator {
 ///       v
 ///
 ///     func f(...) {
-///       if flag {
+///       if flag {           // Ensure all rest in f() are unexecuted
 ///          ...
 ///          return
 ///       }
 ///       ...
 ///     }
 ///
-///     flag = true
+///     flag = true           // Ensure to execute the prologue
 ///     try {
 ///       for (...) {
 ///         ...
-///         f(...)
+///         f(...)            // Try JIT-compiling the subroutine f()
 ///       }
 ///     } catch {
-///       // do nothing
+///       // do nothing       // Dismiss any unexpected behavior
 ///     } finally {
-///       flag = false
+///       flag = false        // Ensure to execute the original f()
 ///     }
 ///
-///     f(...)
+///     f(...)                // Might be executed in JIT or de-optimized
 ///
-/// To ensure JIT compilation, the flag is set to true and the subroutine is executed mutiple times. After that,
-/// the flag is set to false and the call is re-executed.
+/// To ensure JIT compilation, the flag is set to true and the subroutine is executed
+/// mutiple times. After that, the flag is set to false and the call is re-executed.
 public class CallSubrtMutator: JoNMutator {
     var progUnderMut: Program? = nil
 
