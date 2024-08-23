@@ -148,6 +148,12 @@ public class JoNMutator: SubroutineMutator {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
     }
 
+    func adoptSubroutineByDefault(_ subrt: [Instruction], _ b: ProgramBuilder) {
+        for instr in subrt {
+            b.adopt(instr)
+        }
+    }
+
     /// Overridden by child classes.
     /// Check if the subroutine can be mutated by the mutator
     func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
@@ -186,12 +192,21 @@ public class InsNeuLoopMutator: JoNMutator {
     }
     
     override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
+        guard let progUnderMut = progUnderMut else {
+            adoptSubroutineByDefault(subrt, b)
+            return // No available program points
+        }
         // We can only insert our loop before instructions that are mutable
-        let insertAt = chooseUniform(from: (0..<subrt.count-1).filter({ mutable[$0] }))
+        let choices = (0..<subrt.count-1).filter({ mutable[$0] })
+        guard choices.count >= 1 else {
+            adoptSubroutineByDefault(subrt, b)
+            return // No available program points
+        }
+        let insertAt = chooseUniform(from: choices)
         for (index, instr) in subrt.enumerated() {
             b.adopt(instr)
             if index == insertAt {
-                b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
+                b.append(b.randomNeutralLoop(forMutating: progUnderMut))
             }
         }
     }
@@ -241,17 +256,23 @@ public class WrapInstrMutator: JoNMutator {
     }
 
     override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
-        guard subrt.count > 2 else {
+        guard subrt.count > 2, let progUnderMut = progUnderMut else {
+            adoptSubroutineByDefault(subrt, b)
             return // No instructions to wrap
         }
-        let wrapAt = chooseUniform(from: (1..<subrt.count-1).filter({
+        let choices = (1..<subrt.count-1).filter({
             mutable[$0-1] && // The array mutable indicates if we can insert any code *after* that instruction. As our loop is about to wrap it, we have to check the program point before any instruction.
             !subrt[$0].isJump && // We cannot wrap any control-flow instructions
             !subrt[$0].isBlock && // We cannot wrap block starts and ends
             !(subrt[$0].op is Eval) && // We prefer not to wrapping an eval instruction
             !(subrt[$0].op is Await) && // We prefer not to wrapping an await instrcution
             subrt[$0].numOutputs <= 1 // We avoid wrapping instructions with multiple outputs
-        }))
+        })
+        guard choices.count > 1 else {
+            adoptSubroutineByDefault(subrt, b)
+            return // No instructions to wrap
+        }
+        let wrapAt = chooseUniform(from: choices)
         for (index, instr) in subrt.enumerated() {
             if index == wrapAt {
                 // We create a container to save both the flag and instr's output
@@ -260,7 +281,7 @@ public class WrapInstrMutator: JoNMutator {
                 b.buildTryCatchFinally(tryBody: {
                     b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
                         // Append a brand new program so that it has no connections to us
-                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize, forMutating: progUnderMut!))
+                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize, forMutating: progUnderMut))
                         // Check if instr has ben executed in prior iterations and skip
                         // its execution if already; otherwise, execute it and set the flag
                         let flag = b.getElement(0, of: container)
