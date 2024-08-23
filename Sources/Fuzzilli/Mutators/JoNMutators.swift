@@ -152,7 +152,9 @@ public class JoNMutator: SubroutineMutator {
 ///       ...
 ///       try {
 ///         for (...) {}
-///       } catch {}
+///       } catch {
+///         // do nothing
+///       }
 ///       ...
 ///     }
 ///
@@ -202,6 +204,8 @@ public class InsNeuLoopMutator: JoNMutator {
 ///         ...
 ///         if !flag { instr; flag = true; }
 ///       }
+///     } catch {
+///       // do nothing
 ///     } finally {
 ///       if !flag { instr; flag = true; }
 ///     }
@@ -238,7 +242,7 @@ public class WrapInstrMutator: JoNMutator {
             if index == wrapAt {
                 // We create a container to save both the flag and instr's output
                 let container = b.createArray(with: [b.loadBool(false), b.loadNull()])
-                // Wrap the loop by a try-finally block to avoid any unexpected behavior
+                // Wrap the loop by a try-catch-finally block to avoid any unexpected behavior
                 b.buildTryCatchFinally(tryBody: {
                     b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
                         // Append a brand new program so that it has no connections to us
@@ -257,6 +261,9 @@ public class WrapInstrMutator: JoNMutator {
                             b.setElement(0, of: container, to: b.loadBool(true))
                         }
                     }
+                }, catchBody: { _ in
+                    // We dismiss the exception to avoid any unexpected behaviors
+                    return
                 }, finallyBody: {
                     // Double-check to make sure instr is indeed executed once.
                     let flag = b.getElement(0, of: container)
