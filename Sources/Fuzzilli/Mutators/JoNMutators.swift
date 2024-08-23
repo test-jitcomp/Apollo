@@ -322,8 +322,7 @@ public class WrapInstrMutator: JoNMutator {
 ///       }
 ///     } catch {
 ///       // do nothing
-///     }
-///      finally {
+///     } finally {
 ///       flag = false
 ///     }
 ///
