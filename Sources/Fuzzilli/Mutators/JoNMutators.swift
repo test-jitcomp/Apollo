@@ -428,3 +428,5 @@ public class CallSubrtMutator: JoNMutator {
         progUnderMut = nil
     }
 }
+
+// TODO: Add some duck types and mutate by duck types

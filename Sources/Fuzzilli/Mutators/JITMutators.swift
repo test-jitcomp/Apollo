@@ -38,9 +38,9 @@ extension ProgramBuilder {
     }
 }
 
-/// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
-/// TODO: Remove duplicate code among this file, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
-/// TODO: Add some more complicated mutators involving multiple rounds of JIT compilation, de-optimization, and re-compilation
+// TODO: Support configuring loop trips. Type checking to ensure type-confusion and de-optimization.
+// TODO: Remove duplicate code among this file, JIT1Function, JIT2Function, and JITTrickyFunction ProgramTemplates.
+// TODO: Add some more complicated mutators involving multiple rounds of JIT compilation, de-optimization, and re-compilation
 
 /// A JIT mutator is basically an instruction mutator
 public class JITMutator: BaseInstructionMutator {
