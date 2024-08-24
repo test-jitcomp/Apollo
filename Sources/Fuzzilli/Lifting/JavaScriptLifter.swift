@@ -1580,12 +1580,39 @@ public class JavaScriptLifter: Lifter {
         ///
         /// However, this is only possible if the next use is not again a reassignment, otherwise it'd lead to something like `(a = b) = c;`which is invalid.
         /// To simplify things, we therefore only allow the inlining if there is exactly one reassignment.
+        ///
+        /// This is also invalid when the next use is an shortcircut operation as the expression might not be executed.
+        /// For example:
+        ///
+        ///     a += b;
+        ///     c = z || a;
+        ///     d = a;
+        ///
+        /// Will be lifted as:
+        ///
+        ///     c = z || (a += b)
+        ///     d = a;
+        ///
+        /// This will be invalid when `z` is already `true`. We disallow this when its first use is such operations.
         mutating func reassign(_ v: Variable, to expr: Expression) {
             assert(expr.type === AssignmentExpression)
             assert(analyzer.numAssignments(of: v) > 1)
             guard analyzer.numAssignments(of: v) == 2 else {
                 // There are multiple (re-)assignments, so we cannot inline the assignment expression.
                 return emit("\(expr);")
+            }
+
+            // We must be the second assignment (guarded above)
+            let ourIndex = analyzer.assignmentIndices(of: v)[1]
+            if let nextUse = analyzer.uses(of: v).filter({$0.index > ourIndex}).first {
+                if let op = nextUse.op as? BinaryOperation {
+                    // We cannot inline this reassignment as it is the rhs of a shortcircut operation,
+                    // when the lhs of which is evaluated to true (for ||) or false (for &&), the
+                    // effectful rhs will never be executed and we thereby lose its effects.
+                    if (op.op == .LogicAnd || op.op == .LogicOr) && nextUse.inputs[1] == v {
+                        return emit("\(expr);")
+                    }
+                }
             }
 
             guard let identifier = expressions[v] else {
