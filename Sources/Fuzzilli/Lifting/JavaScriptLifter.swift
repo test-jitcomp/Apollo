@@ -1605,13 +1605,22 @@ public class JavaScriptLifter: Lifter {
             // We must be the second assignment (guarded above)
             let ourIndex = analyzer.assignmentIndices(of: v)[1]
             if let nextUse = analyzer.uses(of: v).filter({$0.index > ourIndex}).first {
-                if let op = nextUse.op as? BinaryOperation {
-                    // We cannot inline this reassignment as it is the rhs of a shortcircut operation,
-                    // when the lhs of which is evaluated to true (for ||) or false (for &&), the
-                    // effectful rhs will never be executed and we thereby lose its effects.
-                    if (op.op == .LogicAnd || op.op == .LogicOr) && nextUse.inputs[1] == v {
-                        return emit("\(expr);")
-                    }
+                // We cannot inline this reassignment as it is the rhs of a shortcircut operation,
+                // when the lhs of which is evaluated to true (for ||) or false (for &&), the
+                // effectful rhs will never be executed and we thereby lose its effects.
+                var indexOfV: Int = -1, bop: BinaryOperator? = nil
+                switch nextUse.op {
+                case let op as BinaryOperation: bop = op.op; indexOfV = 1
+                case let op as Update: bop = op.op; indexOfV = 1
+                case let op as UpdateElement: bop = op.op; indexOfV = 1
+                case let op as UpdateProperty: bop = op.op; indexOfV = 1
+                case let op as UpdatePrivateProperty: bop = op.op; indexOfV = 1
+                case let op as UpdateComputedProperty: bop = op.op; indexOfV = 2
+                case let op as UpdateSuperProperty: bop = op.op; indexOfV = 0
+                default: break
+                }
+                if (bop == .LogicOr || bop == .LogicAnd) && nextUse.inputs[indexOfV] == v {
+                    return emit("\(expr);")
                 }
             }
 
