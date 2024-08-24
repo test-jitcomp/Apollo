@@ -412,7 +412,13 @@ public class CallSubrtMutator: JoNMutator {
         // Find the very first call to the subroutine; we'll reuse it.
         var subrtCall: Instruction? = nil
         for instr in progUnderMut.code {
-            if instr.isCall && instr.inputs[0] == subrtBeforeMut {
+            if (
+                instr.isCall &&
+                // CallSuperConstructor does not require a target and
+                // there are chances that it does not have any inputs
+                instr.hasInputs &&
+                instr.inputs[0] == subrtBeforeMut
+            ) {
                 subrtCall = instr
                 break
             }
