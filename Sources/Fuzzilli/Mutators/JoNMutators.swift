@@ -313,7 +313,7 @@ public class WrapInstrMutator: JoNMutator {
                 // Export instr's result in the container to its output variable
                 if instr.hasOneOutput {
                     let instrOut = b.adoptAndDefine(for: instr.output)
-                    b.reassign(b.getElement(1, of: container), to: instrOut)
+                    b.reassign(instrOut, from: b.getElement(1, of: container))
                 }
             } else {
                 b.adopt(instr)

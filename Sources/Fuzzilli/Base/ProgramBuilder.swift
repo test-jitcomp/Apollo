@@ -2304,7 +2304,7 @@ public class ProgramBuilder {
         return emit(TernaryOperation(), withInputs: [condition, lhs, rhs]).output
     }
 
-    public func reassign(_ output: Variable, to input: Variable, with op: BinaryOperator) {
+    public func reassign(_ output: Variable, from input: Variable, with op: BinaryOperator) {
         emit(Update(op), withInputs: [output, input])
     }
 
@@ -2313,7 +2313,7 @@ public class ProgramBuilder {
         return emit(Dup(), withInputs: [v]).output
     }
 
-    public func reassign(_ output: Variable, to input: Variable) {
+    public func reassign(_ output: Variable, from input: Variable) {
         emit(Reassign(), withInputs: [output, input])
     }
 

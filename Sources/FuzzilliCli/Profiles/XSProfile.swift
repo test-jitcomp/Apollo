@@ -275,11 +275,11 @@ fileprivate let RegExpFuzzer = ProgramTemplate("RegExpFuzzer") { b in
             let symbol = b.loadBuiltin("Symbol")
             withEqualProbability({
                 let res = b.callMethod("exec", on: regExpVar, withArgs: [subjectVar])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             }, {
                 let prop = b.getProperty("match", of: symbol)
                 let res = b.callComputedMethod(prop, on: regExpVar, withArgs: [subjectVar])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             }, {
                 let prop = b.getProperty("replace", of: symbol)
                 let replacement = withEqualProbability({
@@ -288,11 +288,11 @@ fileprivate let RegExpFuzzer = ProgramTemplate("RegExpFuzzer") { b in
                     b.loadString(chooseUniform(from: replacementCandidates))
                 })
                 let res = b.callComputedMethod(prop, on: regExpVar, withArgs: [subjectVar, replacement])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             }, {
                 let prop = b.getProperty("search", of: symbol)
                 let res = b.callComputedMethod(prop, on: regExpVar, withArgs: [subjectVar])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             }, {
                 let prop = b.getProperty("split", of: symbol)
                 let randomSplitLimit = withEqualProbability({
@@ -304,10 +304,10 @@ fileprivate let RegExpFuzzer = ProgramTemplate("RegExpFuzzer") { b in
                 })
                 let limit = b.loadString(randomSplitLimit)
                 let res = b.callComputedMethod(symbol, on: regExpVar, withArgs: [subjectVar, limit])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             }, {
                 let res = b.callMethod("test", on: regExpVar, withArgs: [subjectVar])
-                b.reassign(resultVar, to: res)
+                b.reassign(resultVar, from: res)
             })
         }, catchBody: { _ in
         })
