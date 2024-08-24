@@ -18,12 +18,6 @@ import Fuzzilli
 let jsFileExtension = ".js"
 let protoBufFileExtension = ".fzil"
 
-let jsPrefix = ""
-let jsSuffix = ""
-
-let jsLifter = JavaScriptLifter(prefix: jsPrefix, suffix: jsSuffix, ecmaVersion: ECMAScriptVersion.es6)
-let fuzzILLifter = FuzzILLifter()
-
 // Default list of functions that are filtered out during compilation. These are functions that may be used in testcases but which do not influence the test's behaviour and so should be omitted for fuzzing.
 // The functions can use the wildcard '*' character as _last_ character, in which case a prefix match will be performed.
 let filteredFunctionsForCompiler = [
@@ -66,13 +60,13 @@ func loadAllPrograms(in dirPath: String) -> [(filename: String, program: Program
 }
 
 // Take a program and lifts it to JavaScript
-func liftToJS(_ prog: Program) -> String {
+func liftToJS(_ prog: Program, with jsLifter: Lifter) -> String {
     let res = jsLifter.lift(prog)
     return res.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
 // Take a program and lifts it to FuzzIL's text format
-func liftToFuzzIL(_ prog: Program) -> String {
+func liftToFuzzIL(_ prog: Program, with fuzzILLifter: Lifter) -> String {
     let res = fuzzILLifter.lift(prog)
     return res.trimmingCharacters(in: .whitespacesAndNewlines)
 }
@@ -113,6 +107,7 @@ if args["-h"] != nil || args["--help"] != nil || args.numPositionalArguments != 
           Options:
               --liftToFuzzIL         : Lifts the given protobuf program to FuzzIL's text format and prints it
               --liftToJS             : Lifts the given protobuf program to JS and prints it
+              --compatLiftToJS       : Lifts the given protobuf program to JS compatibly and prints it
               --liftCorpusToJS       : Loads all .fzil files in a directory and lifts them to .js files in that same directory
               --dumpProtobuf         : Dumps the raw content of the given protobuf file
               --dumpProgram          : Dumps the internal representation of the program stored in the given protobuf file
@@ -125,16 +120,27 @@ if args["-h"] != nil || args["--help"] != nil || args.numPositionalArguments != 
 
 let path = args[0]
 
+let jsPrefix = ""
+let jsSuffix = ""
+
+let jsLifter: JavaScriptLifter
+if args.has("--compatLiftToJS") {
+    jsLifter = JavaScriptCompatLifter(prefix: jsPrefix, suffix: jsSuffix, ecmaVersion: ECMAScriptVersion.es6)
+} else {
+    jsLifter = JavaScriptLifter(prefix: jsPrefix, suffix: jsSuffix, ecmaVersion: ECMAScriptVersion.es6)
+}
+let fuzzILLifter = FuzzILLifter()
+
 // Covert a single IL protobuf file to FuzzIL's text format and print to stdout
 if args.has("--liftToFuzzIL") {
     let program = loadProgramOrExit(from: path)
-    print(liftToFuzzIL(program))
+    print(liftToFuzzIL(program, with: fuzzILLifter))
 }
 
 // Covert a single IL protobuf file to JS and print to stdout
-else if args.has("--liftToJS") {
+else if args.has("--liftToJS") || args.has("--compatLiftToJS") {
     let program = loadProgramOrExit(from: path)
-    print(liftToJS(program))
+    print(liftToJS(program, with: jsLifter))
 }
 
 // Lift all protobuf programs to JavaScript
