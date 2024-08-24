@@ -15,20 +15,44 @@
 import Foundation
 
 public class JavaScriptCompatLifter: JavaScriptLifter {
+    public static let globalThisName = "__compat_global__";
+    public static let printFuncName = "__compat_out__";
+    public static let chksumContainerName = "__compat_checksum__";
+    public static let chksumIndexInContainer = 0;
+
     public static let codePrefix = """
-    (function(__compat_global__){
-        //
-        // Not all engines defined console.
-        //
-        const __compat_out__ = (
-           (__compat_global__)['console'] &&
-           (__compat_global__)['console'].log
-        ) || (__compat_global__)['print'];
+    (function(\(globalThisName)){
+    //
+    // Define a print function as not all engines defined console.
+    //
+    const \(printFuncName) = (
+       (\(globalThisName))['console'] &&
+       (\(globalThisName))['console'].log
+    ) || (\(globalThisName))['print'];
+
+    //
+    // Define a checksum for the Javascript program.
+    // The code have the flexibility to operate on it.
+    //
+    const \(chksumContainerName) = [0xAB0110];
+
+    //
+    // Wrap all generated code by a try-finally block to ensure
+    // the checksum are always being printed.
+    //
+    try {
 
     """
 
     public static let codeSuffix = """
 
+    } finally {
+        //
+        // Print the checksum as an indicator of the program.
+        // This may be helpful for differential testing.
+        //
+        \(printFuncName)(`Checksum: ${\(chksumContainerName)[\(chksumIndexInContainer)]}`);
+    }
     })(globalThis || global);
     """
 

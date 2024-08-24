@@ -13,7 +13,7 @@
 // limitations under the License.
 
 extension ProgramBuilder {
-    
+
     /// Build a random, small program from scratch
     public func randomProgram(
         n: Int = 10,
@@ -25,11 +25,11 @@ extension ProgramBuilder {
             body(b)
         } else {
             b.buildValues(n / 2)
-            b.build(n: n / 2)
+            b.build(n: n / 2, by: .generating)
         }
         return b.finalize()
     }
-    
+
     /// Create a random neutral loop.
     ///
     /// Let's embed the neutral loop into a brand new, small program which has no
@@ -66,48 +66,37 @@ extension ProgramBuilder {
 ///
 /// The program is unrolled with some operations to chksum are inserted.
 /// The try-finally block ensures that the chksum are always output.
-class InsertChksumMutator: Mutator {
+class InsertChksumOpMutator: Mutator {
 
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
-        // Firstly, define a checksum variable: "var chksumContainer = [0xAB011]".
-        // We create an array as the container for our checksum as if we used a
-        // checksum variable, of which the operations are performed in the try-block,
-        // is not visible in the finally-block in FuzzIL.
-        let chkSumContainer = b.createIntArray(with: [0xAB0110])
         var contextAnalyzer = ContextAnalyzer()
 
-        // Let's insert a try-catch to ensure that the checksum are always printed
-        b.buildTryCatchFinally(tryBody: {
-            b.adopting(from: program) {
-                for instr in program.code {
-                    b.adopt(instr)
-                    contextAnalyzer.analyze(instr)
-                    // Perform some operations over the checksum:
-                    // "checkSumContainer[0] = operations involving chksumContainer[0]"
-                    if probability(0.2) && contextAnalyzer.context.isSuperset(of: .javascript) {
-                        let chkSumVal = b.binary(
-                            b.getElement(0, of: chkSumContainer),
-                            b.randomVariable(ofType: .integer) ?? b.loadInt(b.randomInt()),
-                            with: withEqualProbability(
-                                {.Add}, {.Sub}, {.Mul},
-                                {.BitAnd}, {.BitOr}, {.Xor},
-                                {.LogicOr}, {.LogicAnd}
-                            )
+        let chkSumIndex = Int64(JavaScriptCompatLifter.chksumIndexInContainer)
+        let chkSumContainer = b.loadNamedVariable(
+            JavaScriptCompatLifter.chksumContainerName
+        )
+        b.adopting(from: program) {
+            for instr in program.code {
+                b.adopt(instr)
+                contextAnalyzer.analyze(instr)
+                // Insert some add/sub/mul/... operations over the checksum
+                if (
+                    probability(0.2) &&
+                    contextAnalyzer.context.isSuperset(of: .javascript)
+                ) {
+                    b.updateElement(
+                        chkSumIndex,
+                        of: chkSumContainer,
+                        with: b.randomVariable(ofType: .integer) ?? b.loadInt(Int64.random(in: 1...25536)),
+                        using: withEqualProbability(
+                            {.Add}, {.Sub}, {.Mul},
+                            {.BitAnd}, {.BitOr}, {.Xor},
+                            {.LogicOr}, {.LogicAnd}
                         )
-                        b.setElement(0, of: chkSumContainer, to: chkSumVal)
-                    }
+                    )
                 }
             }
-        }, finallyBody: {
-            // Finally, print the value of the checksum:
-            // "print(`Checksum: ${checkSumContainer[0]}`)"
-            let chksumMsg = b.binary(
-                b.loadString("Checksum: "),
-                b.getElement(0, of: chkSumContainer),
-                with: .Add
-            )
-            b.eval("__compat_out__(%@)", with: [chksumMsg])
-        })
+        }
 
         return b.finalize()
     }

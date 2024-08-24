@@ -22,8 +22,8 @@ public class JoNMutEngine: FuzzEngine {
     // The number of consecutive mutations to apply to a sample.
     private let numConsecutiveMutations: Int
 
-    // The mutator which helps add a checksum before applying JoN mutations
-    private let chksumInserter = InsertChksumMutator()
+    // The mutator which helps add some checksum operations before applying JoN mutations
+    private let chksumOpInserter = InsertChksumOpMutator()
 
     public init(numConsecutiveMutations: Int, probGenNew: Double) {
         self.numConsecutiveMutations = numConsecutiveMutations
@@ -112,7 +112,10 @@ public class JoNMutEngine: FuzzEngine {
     /// Specifically, to prevent that the program does not print, we manually
     /// insert a checksum variable into it and print its value in the end.
     private func prepareForJoNMutating(_ program: Program) -> Program? {
-        return chksumInserter.mutate(program, for: fuzzer)!
+        if program.contributors.contains(chksumOpInserter) {
+            return program // We have already added a checksum; avoid redoing.
+        }
+        return chksumOpInserter.mutate(program, for: fuzzer)
     }
 
     /// Pick a program (without JoN mutations) for JoN mutation
