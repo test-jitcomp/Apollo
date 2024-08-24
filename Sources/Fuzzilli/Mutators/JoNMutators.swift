@@ -87,9 +87,7 @@ class InsertChksumOpMutator: Mutator {
                     b.updateElement(
                         chkSumIndex,
                         of: chkSumContainer,
-                        with: b.randomVariable(
-                            ofType: .integer
-                        ) ?? b.loadInt(Int64.random(in: 1...25536)),
+                        with: b.loadInt(Int64.random(in: 1...25536)),
                         using: withEqualProbability(
                             {.Add}, {.Sub}, {.Mul}, // Discard .Div and .Mod to avoid DivByZero
                             {.BitAnd}, {.BitOr}, {.Xor},
