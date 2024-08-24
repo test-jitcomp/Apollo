@@ -25,6 +25,9 @@ public class JoNMutEngine: FuzzEngine {
     // The mutator which helps add some checksum operations before applying JoN mutations
     private let chksumOpInserter = InsertChksumOpMutator()
 
+    // The mutator, working as a backup, helps add a neutral loop into the program
+    private let neuLoopInserter = PlainInsNeuLoopMutator()
+
     public init(numConsecutiveMutations: Int, probGenNew: Double) {
         self.numConsecutiveMutations = numConsecutiveMutations
 
@@ -65,11 +68,16 @@ public class JoNMutEngine: FuzzEngine {
 
         // Perform a sequence of JoN mutations and check their results
         for _ in 0..<(numConsecutiveMutations) {
-            var mutator = fuzzer.jonMutators.randomElement()
+            var mutator: Mutator = fuzzer.jonMutators.randomElement()
 
             let maxAttempts: Int = 5
             var mutantOrNil: Program? = nil
-            for _ in 0..<maxAttempts {
+            for i in 0...maxAttempts {
+                if i == maxAttempts {
+                    // We failed too many times.
+                    // Fallback to the simple mutator.
+                    mutator = neuLoopInserter
+                }
                 if let result = mutator.mutate(seed, for: fuzzer) {
                     // Success!
                     result.contributors.formUnion(seed.contributors)

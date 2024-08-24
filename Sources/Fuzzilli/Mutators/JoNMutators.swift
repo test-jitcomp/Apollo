@@ -105,6 +105,30 @@ class InsertChksumOpMutator: Mutator {
     }
 }
 
+/// A simple JIT mutator that inserts a neutral loop into a random program point
+public class PlainInsNeuLoopMutator: JITMutator {
+    var progUnderMut: Program? = nil
+
+    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
+        super.beginMutation(of: p, using: b)
+        progUnderMut = p
+    }
+
+    override func canMutateInstruction(_ i: Instruction) -> Bool {
+        return !contextAnalyzer.context.contains(.subroutine)
+    }
+
+    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+        b.adopt(i)
+        b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
+    }
+
+    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+        super.endMutation(of: p, using: b)
+        progUnderMut = nil
+    }
+}
+
 /// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
