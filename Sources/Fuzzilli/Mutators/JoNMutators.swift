@@ -110,7 +110,7 @@ public class JoNMutator: BaseSubroutineMutator {
     public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
         // As we will add a try-catch block over the whole program.
         // Our mutations for subroutines are performed at depth 1.
-        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, mutateSubrtsAtDepth: 1)
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, mutateSubrtsAtDepth: 0)
     }
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
