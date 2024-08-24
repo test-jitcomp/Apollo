@@ -747,13 +747,33 @@ public class JavaScriptLifter: Lifter {
                 let f = inputAsIdentifier(0)
                 let args = inputs.dropFirst()
                 let expr = CallExpression.new() + f + "(" + liftCallArguments(args) + ")"
-                w.assign(expr, to: instr.output)
+                // We indeed avoid inlining all function calls to avoid side effects.
+                // For example:
+                //
+                // When inlining are enabled, the following program:
+                //
+                //   const v1 = foo(...)
+                //   v2 += v1
+                //
+                // will be translated to:
+                //
+                //   v2 += foo(...) // or v2 = v2 + foo(...)
+                //
+                // Yet, the translation is not safe when foo(...) involves updating `v2`
+                // due to the evaluation order of the righthand-side (rhs) operands v2 and foo(...).
+                // - If foo(...) is executed prior to v2 (rhs), then the translation is safe.
+                // - If v2 (rhs) is executed prior to foo(...), it is not as foo's updating
+                //   to v2 is not relected on v2 (rhs).
+                //
+                // Looks like, the evaluation order of operands in JavaScript is undefined.
+                // Therefore, we disallow inlining for all call operations for safety.
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .callFunctionWithSpread(let op):
                 let f = inputAsIdentifier(0)
                 let args = inputs.dropFirst()
                 let expr = CallExpression.new() + f + "(" + liftCallArguments(args, spreading: op.spreads) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .construct:
                 let f = inputAsIdentifier(0)
@@ -774,28 +794,28 @@ public class JavaScriptLifter: Lifter {
                 let method = MemberExpression.new() + obj + "." + op.methodName
                 let args = inputs.dropFirst()
                 let expr = CallExpression.new() + method + "(" + liftCallArguments(args) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .callMethodWithSpread(let op):
                 let obj = input(0)
                 let method = MemberExpression.new() + obj + "." + op.methodName
                 let args = inputs.dropFirst()
                 let expr = CallExpression.new() + method + "(" + liftCallArguments(args, spreading: op.spreads) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .callComputedMethod:
                 let obj = input(0)
                 let method = MemberExpression.new() + obj + "[" + input(1).text + "]"
                 let args = inputs.dropFirst(2)
                 let expr = CallExpression.new() + method + "(" + liftCallArguments(args) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .callComputedMethodWithSpread(let op):
                 let obj = input(0)
                 let method = MemberExpression.new() + obj + "[" + input(1).text + "]"
                 let args = inputs.dropFirst(2)
                 let expr = CallExpression.new() + method + "(" + liftCallArguments(args, spreading: op.spreads) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .unaryOperation(let op):
                 var input = input(0)
@@ -956,7 +976,7 @@ public class JavaScriptLifter: Lifter {
 
             case .callSuperMethod(let op):
                 let expr = CallExpression.new() + "super.\(op.methodName)(" + liftCallArguments(inputs)  + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .getPrivateProperty(let op):
                 let obj = input(0)
@@ -982,7 +1002,7 @@ public class JavaScriptLifter: Lifter {
                 let method = MemberExpression.new() + obj + ".#" + op.methodName
                 let args = inputs.dropFirst()
                 let expr = CallExpression.new() + method + "(" + liftCallArguments(args) + ")"
-                w.assign(expr, to: instr.output)
+                w.assign(expr, to: instr.output, allowInlining: false)
 
             case .getSuperProperty(let op):
                 let expr = MemberExpression.new() + "super.\(op.propertyName)"
