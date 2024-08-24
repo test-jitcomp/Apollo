@@ -72,8 +72,10 @@ class LifterTests: XCTestCase {
 
         let expected = """
         const v1 = new Object();
-        v1.r = SomeObj.foo.bar.baz(42, 42);
-        v1.s = Math.random() + 13.37;
+        const v6 = SomeObj.foo.bar.baz(42, 42);
+        v1.r = v6;
+        const v8 = Math.random();
+        v1.s = v8 + 13.37;
         v1.s;
 
         """
@@ -101,7 +103,8 @@ class LifterTests: XCTestCase {
         let expected = """
         const v1 = new Object();
         const t1 = SomeObj.foo.bar.baz;
-        v1.r = t1(42, 42);
+        const v7 = t1(42, 42);
+        v1.r = v7;
 
         """
 
@@ -189,7 +192,9 @@ class LifterTests: XCTestCase {
 
         let expected = """
         const v1 = new Object();
-        v1.res1 = effectful.func1() + effectful.func2();
+        const v3 = effectful.func1();
+        const v4 = effectful.func2();
+        v1.res1 = v3 + v4;
         const v6 = effectful.func3();
         effectful.func4();
         v1.res2 = v6 + 13.37;
@@ -205,20 +210,36 @@ class LifterTests: XCTestCase {
         v1.res6 = v17;
         effectful.func11();
         const v19 = effectful.func12();
-        v1.res7 = (effectful.func13() + (effectful.func14() * effectful.func15())) / v19;
-        v1.res8 = effectful.func19(effectful.func16(), effectful.func17(), effectful.func18());
+        const v20 = effectful.func13();
+        const v21 = effectful.func14();
+        const v22 = effectful.func15();
+        v1.res7 = (v20 + (v21 * v22)) / v19;
+        const v26 = effectful.func16();
+        const v27 = effectful.func17();
+        const v28 = effectful.func18();
+        const v29 = effectful.func19(v26, v27, v28);
+        v1.res8 = v29;
         const v30 = effectful.func20();
-        v1.res9 = effectful.func23(effectful.func21(), effectful.func22(), v30);
+        const v31 = effectful.func21();
+        const v32 = effectful.func22();
+        const v33 = effectful.func23(v31, v32, v30);
+        v1.res9 = v33;
         const v34 = effectful.func24();
         const v35 = effectful.func25();
-        v1.res10 = effectful.func27(v34, effectful.func26(), v35);
+        const v36 = effectful.func26();
+        const v37 = effectful.func27(v34, v36, v35);
+        v1.res10 = v37;
         const v38 = effectful.func28();
         const v39 = effectful.func29();
-        v1.res11 = effectful.func31(effectful.func30(), v38, v39);
+        const v40 = effectful.func30();
+        const v41 = effectful.func31(v40, v38, v39);
+        v1.res11 = v41;
         const v42 = effectful.func32();
         const v43 = effectful.func33();
         const v44 = effectful.func34();
-        v1.res12 = effectful.func36(v42, v44, effectful.func35(v43));
+        const v45 = effectful.func35(v43);
+        const v46 = effectful.func36(v42, v44, v45);
+        v1.res12 = v46;
 
         """
 
@@ -243,7 +264,8 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        if (someValue < computeThreshold()) {
+        const v2 = computeThreshold();
+        if (someValue < v2) {
             doSomething();
         }
 
@@ -299,7 +321,8 @@ class LifterTests: XCTestCase {
 
         let expected = """
         const v1 = new Object();
-        const v6 = func2(func1(1337));
+        const v4 = func1(1337);
+        const v6 = func2(v4);
         v1.x = v6;
         v1.y = v6;
 
@@ -387,7 +410,8 @@ class LifterTests: XCTestCase {
 
         let expected = """
         function f0(a1) {
-            return Math.sqrt((a1.x ** 2) + (a1.y ** 2));
+            const v9 = Math.sqrt((a1.x ** 2) + (a1.y ** 2));
+            return v9;
         }
 
         """
@@ -1110,7 +1134,10 @@ class LifterTests: XCTestCase {
         let v14 = 48;
         foo(v14 = 49, v14, v14);
         let v17 = 50;
-        foo(bar(v17 = 51, v17, baz(), v17));
+        v17 = 51;
+        const v19 = baz();
+        const v20 = bar(v17, v17, v19, v17);
+        foo(v20);
         let v22 = 52;
         v22 = [];
         v22[42] = v22;
@@ -1442,8 +1469,8 @@ class LifterTests: XCTestCase {
 
         let expected = """
         eval("print('Hello World!')");
-        const t0 = this.eval;
-        t0("print('Hello World!')");
+        const t1 = this.eval;
+        t1("print('Hello World!')");
         this.eval("print('Hello World!')");
 
         """
@@ -1488,7 +1515,8 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        Math.sin(Math.random());
+        const v1 = Math.random();
+        Math.sin(v1);
 
         """
 
@@ -1537,7 +1565,8 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        ("Hello World")[Symbol.iterator]().next();
+        const v3 = ("Hello World")[Symbol.iterator]();
+        v3.next();
 
         """
 
@@ -1558,7 +1587,8 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        SomeObject[RandomMethod()](...[1,2,3,4]);
+        const v2 = RandomMethod();
+        SomeObject[v2](...[1,2,3,4]);
 
         """
 
@@ -1696,7 +1726,8 @@ class LifterTests: XCTestCase {
                 super[a10] = 100;
             }
             g(a13) {
-                return super[f6() + a13];
+                const v14 = f6();
+                return super[v14 + a13];
             }
         }
         new C8(13.37);
@@ -2057,7 +2088,10 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        while (shouldContinue()) {
+        while ((() => {
+                const v1 = shouldContinue();
+                return v1;
+            })()) {
         }
 
         """
@@ -2081,7 +2115,11 @@ class LifterTests: XCTestCase {
 
         let expected = """
         let v2 = 10;
-        while (f(), g(), v2) {
+        while ((() => {
+                f();
+                g();
+                return v2;
+            })()) {
             v2--;
         }
 
@@ -2103,7 +2141,11 @@ class LifterTests: XCTestCase {
         var actual = fuzzer.lifter.lift(program)
 
         var expected = """
-        while (f(), g()) {
+        while ((() => {
+                f();
+                const v3 = g();
+                return v3;
+            })()) {
         }
 
         """
@@ -2182,7 +2224,10 @@ class LifterTests: XCTestCase {
         const v2 = f();
         const v4 = g();
         const v6 = h();
-        while (print(v2), false) {
+        while ((() => {
+                print(v2);
+                return false;
+            })()) {
             print(v4);
         }
         print(v6);
@@ -2214,7 +2259,10 @@ class LifterTests: XCTestCase {
             let v1 = 0;
             do {
                 v1++;
-            } while (f(v1))
+            } while ((() => {
+                    const v4 = f(v1);
+                    return v4;
+                })())
             v0++;
         } while (v0 < 42)
 
@@ -2238,7 +2286,11 @@ class LifterTests: XCTestCase {
         let expected = """
         do {
             doSomething();
-        } while (f(), g())
+        } while ((() => {
+                f();
+                const v5 = g();
+                return v5;
+            })())
 
         """
 
@@ -2267,7 +2319,10 @@ class LifterTests: XCTestCase {
         const v6 = h();
         do {
             print(v2);
-        } while (print(v4), false)
+        } while ((() => {
+                print(v4);
+                return false;
+            })())
         print(v6);
 
         """
@@ -2336,7 +2391,20 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        for (let i4 = f1(), i5 = f2(); f3(i4), f4(i5); f5(i5), f6(i4)) {
+        for (let [i4, i5] = (() => {
+                const v1 = f1();
+                const v3 = f2();
+                return [v1, v3];
+            })();
+            (() => {
+                f3(i4);
+                const v9 = f4(i5);
+                return v9;
+            })();
+            (() => {
+                f5(i5);
+                f6(i4);
+            })()) {
             f7(i4, i5);
         }
 
@@ -2393,10 +2461,14 @@ class LifterTests: XCTestCase {
         let actual = fuzzer.lifter.lift(program)
 
         let expected = """
-        for (foo(), bar();
+        for ((() => {
+                foo();
+                bar();
+            })();
             (() => {
                 let v5 = shouldContinue();
-                if (shouldNotContinue()) {
+                const v7 = shouldNotContinue();
+                if (v7) {
                     v5 = false;
                 }
                 return v5;
@@ -2445,7 +2517,8 @@ class LifterTests: XCTestCase {
         let expected = """
         for (let i4 = (() => {
                 f();
-                return g();
+                const v3 = g();
+                return v3;
             })();
             ;
             ) {
@@ -2504,7 +2577,16 @@ class LifterTests: XCTestCase {
         const v6 = h();
         const v8 = i();
         const v10 = j();
-        for (print(v2); print(v4); print(v6)) {
+        for ((() => {
+                print(v2);
+            })();
+            (() => {
+                const v12 = print(v4);
+                return v12;
+            })();
+            (() => {
+                print(v6);
+            })()) {
             print(v8);
         }
         print(v10);
