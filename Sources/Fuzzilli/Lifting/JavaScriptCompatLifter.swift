@@ -48,7 +48,6 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
     """
 
     public static let codeSuffix = """
-
     //
     // Generated code ends here
     //
