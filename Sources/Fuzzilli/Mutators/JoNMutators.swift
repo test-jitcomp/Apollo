@@ -114,7 +114,7 @@ class InsertChksumMutator: Mutator {
 }
 
 /// A JoN mutator is basically a subroutine mutator
-public class JoNMutator: SubroutineMutator {
+public class JoNMutator: BaseSubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
     var deadCodeAnalyzer = DeadCodeAnalyzer()
 

@@ -38,7 +38,7 @@ extension Code {
 }
 
 /// Base class for mutators that operate on an outmost subroutine (function, method, etc.)
-public class SubroutineMutator: Mutator {
+public class BaseSubroutineMutator: Mutator {
     let maxSimultaneousMutations: Int
     
     /// The depth of the subroutines that we mutate
