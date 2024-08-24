@@ -266,9 +266,11 @@ public class WrapInstrMutator: JoNMutator {
             return // No instructions to wrap
         }
         let choices = (1..<subrt.count-1).filter({
+            // TODO: Avoid wrapping instructions with side effects.
             mutable[$0-1] && // The array mutable indicates if we can insert any code *after* that instruction. As our loop is about to wrap it, we have to check the program point before any instruction.
             !subrt[$0].isJump && // We cannot wrap any control-flow instructions
             !subrt[$0].isBlock && // We cannot wrap block starts and ends
+            !subrt[$0].isCall && // We prefer not to wrapping calls as it is not atomic
             !(subrt[$0].op is Eval) && // We prefer not to wrapping an eval instruction
             !(subrt[$0].op is Await) && // We prefer not to wrapping an await instrcution
             subrt[$0].numOutputs <= 1 // We avoid wrapping instructions with multiple outputs
@@ -291,19 +293,17 @@ public class WrapInstrMutator: JoNMutator {
                         // its execution if already; otherwise, execute it and set the flag
                         let flag = b.getElement(0, of: container)
                         b.buildIf(b.unary(.LogicalNot, flag)) {
-                            // We have to the flag first as the origianl instruction may
-                            // throw exceptions. If we set the flag latter, we will execute
-                            // the instruction twice.
-                            // TODO: Once there are exceptions, the exceptions are captured
-                            // and dismissed by us; this is unexpected? Or not...
-                            b.setElement(0, of: container, to: b.loadBool(true))
-                            // We replicate() instead of adopt() as we are in a loop;
-                            // the output variable is invisible to outer scopes.
-                            // So we save the output value to our container.
                             let newInstrOut = b.replicate(instr)
                             if instr.hasOneOutput {
                                 b.setElement(1, of: container, to: newInstrOut[0])
                             }
+                            // We now move the set after executing instr as there're channces
+                            // that instr throw exceptions. In this case, our catch block will
+                            // dismiss it. We have to re-execute it to make the exceptions thrown
+                            // again. To avoid cases that exeucting the instruction twice (even
+                            // though throwing exceptions) may bring side effects, we choose to
+                            // not wrap instructions with side effects (like calls).
+                            b.setElement(0, of: container, to: b.loadBool(true))
                         }
                     }
                 }, catchBody: { _ in
@@ -313,6 +313,8 @@ public class WrapInstrMutator: JoNMutator {
                     // Double-check to make sure instr is indeed executed once.
                     let flag = b.getElement(0, of: container)
                     b.buildIf(b.unary(.LogicalNot, flag)) {
+                        // We set the flag prior to executing instr in this finally
+                        // block because we cannot execute it again even it fails.
                         b.setElement(0, of: container, to: b.loadBool(true))
                         let newInstrOut = b.replicate(instr)
                         if instr.hasOneOutput {
