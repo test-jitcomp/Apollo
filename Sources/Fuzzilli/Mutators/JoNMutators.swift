@@ -275,6 +275,12 @@ public class WrapInstrMutator: JoNMutator {
                         // its execution if already; otherwise, execute it and set the flag
                         let flag = b.getElement(0, of: container)
                         b.buildIf(b.unary(.LogicalNot, flag)) {
+                            // We have to the flag first as the origianl instruction may
+                            // throw exceptions. If we set the flag latter, we will execute
+                            // the instruction twice.
+                            // TODO: Once there are exceptions, the exceptions are captured
+                            // and dismissed by us; this is unexpected? Or not...
+                            b.setElement(0, of: container, to: b.loadBool(true))
                             // We replicate() instead of adopt() as we are in a loop;
                             // the output variable is invisible to outer scopes.
                             // So we save the output value to our container.
@@ -282,7 +288,6 @@ public class WrapInstrMutator: JoNMutator {
                             if instr.hasOneOutput {
                                 b.setElement(1, of: container, to: newInstrOut[0])
                             }
-                            b.setElement(0, of: container, to: b.loadBool(true))
                         }
                     }
                 }, catchBody: { _ in
