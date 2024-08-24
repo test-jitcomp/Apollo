@@ -313,11 +313,11 @@ public class WrapInstrMutator: JoNMutator {
                     // Double-check to make sure instr is indeed executed once.
                     let flag = b.getElement(0, of: container)
                     b.buildIf(b.unary(.LogicalNot, flag)) {
+                        b.setElement(0, of: container, to: b.loadBool(true))
                         let newInstrOut = b.replicate(instr)
                         if instr.hasOneOutput {
                             b.setElement(1, of: container, to: newInstrOut[0])
                         }
-                        b.setElement(0, of: container, to: b.loadBool(true))
                     }
                 })
                 // Export instr's result in the container to its output variable
