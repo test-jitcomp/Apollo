@@ -84,16 +84,32 @@ class InsertChksumOpMutator: Mutator {
                     probability(0.2) &&
                     contextAnalyzer.context.isSuperset(of: .javascript)
                 ) {
-                    b.updateElement(
-                        chkSumIndex,
-                        of: chkSumContainer,
-                        with: b.randomVariable(ofType: .integer) ?? b.loadInt(Int64.random(in: 1...25536)),
-                        using: withEqualProbability(
-                            {.Add}, {.Sub}, {.Mul},
+                    // TODO: Looks like JavaScriptLifter is buggy lifting UpdateElement
+                    // It translates:
+                    //
+                    //   v28 <- LoadNull
+                    //   v29 <- GetElement v8, '1'
+                    //   Reassign v28, v29
+                    //   UpdateElement v0, '0', '||', v28
+                    //
+                    // to:
+                    //
+                    //   let v28 = null;
+                    //   v0[0] ||= v28 = v8[1];
+                    //
+                    // In the above JavaScript, v0[0] is updated while v28 is not.
+                    //
+                    // Avoid using UpdateElement for now.
+                    b.setElement(chkSumIndex, of: chkSumContainer, to: b.binary(
+                        b.getElement(chkSumIndex, of: chkSumContainer),
+                        b.randomVariable(ofType: .integer) ?? b.loadInt(b.randomInt(1...25536)),
+                        with: withEqualProbability(
+                            {.Add}, {.Sub}, {.Mul}, // Discard .Div and .Mod to avoid DivByZero
                             {.BitAnd}, {.BitOr}, {.Xor},
-                            {.LogicOr}, {.LogicAnd}
+                            {.LogicOr}, {.LogicAnd},
+                            {.LShift} // Discard .Div and .Mod to avoid DivByZero
                         )
-                    )
+                   ))
                 }
             }
         }
