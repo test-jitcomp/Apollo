@@ -416,9 +416,9 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
 
     // These mutators are specifically designed around JIT compilers, specifically JoNMutEngine
     let jonMutators = WeightedList<JoNMutator>([
-        (InsNeuLoopMutator(),               4),
-        (WrapInstrMutator(),                2),
-        (CallSubrtMutator(),                2),
+        (InsNeuLoopForJITMutator(),         4),
+        (WrapInstrForJITMutator(),          2),
+        (CallSubrtForJITMutator(),          2),
     ])
     if ["jonmut"].contains(engineName) {
         logger.info("Enabled JoN mutators: \(jonMutators.map { $0.name })")

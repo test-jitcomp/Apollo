@@ -105,7 +105,7 @@ class InsertChksumOpMutator: Mutator {
     }
 }
 
-/// A JoN mutator is basically a subroutine mutator
+/// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
     var deadCodeAnalyzer = DeadCodeAnalyzer()
@@ -171,9 +171,9 @@ public class JoNMutator: BaseSubroutineMutator {
 ///     }
 ///
 /// The inserted neutral loop are wrapped by a try-catch block to dismiss any possble exceptions.
-public class InsNeuLoopMutator: JoNMutator {
+public class InsNeuLoopForJITMutator: JoNMutator {
     var progUnderMut: Program? = nil
-    
+
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         super.beginMutation(of: p, using: b)
         progUnderMut = p
@@ -232,7 +232,7 @@ public class InsNeuLoopMutator: JoNMutator {
 ///     }
 ///
 /// The flag is to control the execution of the instruction being wrapped.
-public class WrapInstrMutator: JoNMutator {
+public class WrapInstrForJITMutator: JoNMutator {
     var progUnderMut: Program? = nil
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
@@ -364,7 +364,7 @@ public class WrapInstrMutator: JoNMutator {
 ///
 /// To ensure JIT compilation, the flag is set to true and the subroutine is executed
 /// mutiple times. After that, the flag is set to false and the call is re-executed.
-public class CallSubrtMutator: JoNMutator {
+public class CallSubrtForJITMutator: JoNMutator {
     var progUnderMut: Program? = nil
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
