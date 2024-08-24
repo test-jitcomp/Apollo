@@ -42,9 +42,16 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
     //
     try {
 
+    //
+    // Generated code starts here
+    //
     """
 
     public static let codeSuffix = """
+
+    //
+    // Generated code ends here
+    //
 
     } finally {
         //
