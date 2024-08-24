@@ -833,13 +833,13 @@ public class JavaScriptLifter: Lifter {
                 let dest = input(0)
                 assert(dest.type === Identifier)
                 let expr = AssignmentExpression.new() + dest + " = " + input(1)
-                w.reassign(instr.input(0), to: expr)
+                w.reassign(instr.input(0), from: expr)
 
             case .update(let op):
                 let dest = input(0)
                 assert(dest.type === Identifier)
                 let expr = AssignmentExpression.new() + dest + " \(op.op.token)= " + input(1)
-                w.reassign(instr.input(0), to: expr)
+                w.reassign(instr.input(0), from: expr)
 
             case .dup:
                 let LET = w.declarationKeyword(for: instr.output)
@@ -1563,7 +1563,7 @@ public class JavaScriptLifter: Lifter {
             }
         }
 
-        /// Reassign a FuzzIL variable to a new JavaScript expression.
+        /// Reassign a FuzzIL variable from a new JavaScript expression.
         /// The given expression is expected to be an AssignmentExpression.
         ///
         /// Variable reassignments such as `a = b` or `c += d` can be inlined once into the next use of the reassigned variable. All subsequent uses then again use the variable.
@@ -1594,7 +1594,7 @@ public class JavaScriptLifter: Lifter {
         ///     d = a;
         ///
         /// This will be invalid when `z` is already `true`. We disallow this when its first use is such operations.
-        mutating func reassign(_ v: Variable, to expr: Expression) {
+        mutating func reassign(_ v: Variable, from expr: Expression) {
             assert(expr.type === AssignmentExpression)
             assert(analyzer.numAssignments(of: v) > 1)
             guard analyzer.numAssignments(of: v) == 2 else {
