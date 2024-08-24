@@ -284,6 +284,7 @@ public class WrapInstrForJITMutator: JoNMutator {
             !subrt[$0].isCall && // We prefer not to wrapping calls as it is not atomic
             !(subrt[$0].op is Eval) && // We prefer not to wrapping an eval instruction
             !(subrt[$0].op is Await) && // We prefer not to wrapping an await instrcution
+            !(subrt[$0].op is LoadBuiltin) && // We prefer not to wrapping an await instrcution
             subrt[$0].numOutputs <= 1 // We avoid wrapping instructions with multiple outputs
         })
         guard choices.count > 1 else {
