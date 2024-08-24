@@ -2308,12 +2308,20 @@ public class ProgramBuilder {
         emit(Update(op), withInputs: [output, input])
     }
 
+    public func reassign(_ input: Variable, to output: Variable, with op: BinaryOperator) {
+        emit(Update(op), withInputs: [output, input])
+    }
+
     @discardableResult
     public func dup(_ v: Variable) -> Variable {
         return emit(Dup(), withInputs: [v]).output
     }
 
     public func reassign(_ output: Variable, from input: Variable) {
+        emit(Reassign(), withInputs: [output, input])
+    }
+
+    public func reassign(_ input: Variable, to output: Variable) {
         emit(Reassign(), withInputs: [output, input])
     }
 
