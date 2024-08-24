@@ -131,7 +131,7 @@ class JSTyperTests: XCTestCase {
                 XCTAssertEqual(b.type(of: this), .object())
                 XCTAssertEqual(b.type(of: params[1]), .string)
                 XCTAssertEqual(b.type(of: v), .integer)
-                b.reassign(v, to: params[1])
+                b.reassign(v, from: params[1])
                 XCTAssertEqual(b.type(of: v), .string)
             }
 
@@ -143,7 +143,7 @@ class JSTyperTests: XCTestCase {
                 XCTAssertEqual(b.type(of: this), .object(withProperties: ["a", "b"]))
                 XCTAssertEqual(b.type(of: params[1]), .float)
                 XCTAssertEqual(b.type(of: v), .integer | .string)
-                b.reassign(v, to: params[1])
+                b.reassign(v, from: params[1])
                 XCTAssertEqual(b.type(of: v), .float)
             }
 
@@ -205,7 +205,7 @@ class JSTyperTests: XCTestCase {
             cls.addInstanceMethod("m", with: .parameters(n: 0)) { args in
                 XCTAssertEqual(b.type(of: v), .integer)
 
-                b.reassign(v, to: b.loadFloat(13.37))
+                b.reassign(v, from: b.loadFloat(13.37))
 
                 XCTAssertEqual(b.type(of: v), .float)
             }
@@ -214,8 +214,8 @@ class JSTyperTests: XCTestCase {
                 XCTAssertEqual(b.type(of: v), .integer | .float)
                 XCTAssertEqual(b.type(of: f), .float)
 
-                b.reassign(v, to: b.loadString("bar"))
-                b.reassign(f, to: b.loadString("baz"))
+                b.reassign(v, from: b.loadString("bar"))
+                b.reassign(f, from: b.loadString("baz"))
 
                 XCTAssertEqual(b.type(of: v), .string)
                 XCTAssertEqual(b.type(of: f), .string)
@@ -225,8 +225,8 @@ class JSTyperTests: XCTestCase {
                 XCTAssertEqual(b.type(of: v), .integer | .float | .string)
                 XCTAssertEqual(b.type(of: s), .string)
 
-                b.reassign(v, to: b.loadBool(true))
-                b.reassign(s, to: b.loadFloat(13.37))
+                b.reassign(v, from: b.loadBool(true))
+                b.reassign(s, from: b.loadFloat(13.37))
 
                 XCTAssertEqual(b.type(of: v), .boolean)
                 XCTAssertEqual(b.type(of: s), .float)
@@ -239,7 +239,7 @@ class JSTyperTests: XCTestCase {
             cls.addStaticInitializer { this in
                 XCTAssertEqual(b.type(of: f), .float | .string)
 
-                b.reassign(f, to: b.loadBool(true))
+                b.reassign(f, from: b.loadBool(true))
 
                 XCTAssertEqual(b.type(of: f), .boolean)
             }
@@ -530,11 +530,11 @@ class JSTyperTests: XCTestCase {
         XCTAssertEqual(b.type(of: v), .integer)
 
         let floatVar = b.loadFloat(13.37)
-        b.reassign(v, to: floatVar)
+        b.reassign(v, from: floatVar)
         XCTAssertEqual(b.type(of: v), .float)
 
         let objVar = b.createObject(with: ["foo": b.loadInt(1337)])
-        b.reassign(v, to: objVar)
+        b.reassign(v, from: objVar)
         XCTAssertEqual(b.type(of: v), .object(withProperties: ["foo"]))
     }
 
@@ -553,7 +553,7 @@ class JSTyperTests: XCTestCase {
 
             XCTAssertEqual(b.type(of: v), .integer)
             let stringVar = b.loadString("foobar")
-            b.reassign(v, to: stringVar)
+            b.reassign(v, from: stringVar)
             XCTAssertEqual(b.type(of: v), .string)
         }, elseBody: {
             XCTAssertEqual(b.type(of: obj), .object(withProperties: ["foo"]))
@@ -563,7 +563,7 @@ class JSTyperTests: XCTestCase {
 
             XCTAssertEqual(b.type(of: v), .integer)
             let floatVar = b.loadFloat(13.37)
-            b.reassign(v, to: floatVar)
+            b.reassign(v, from: floatVar)
         })
 
         XCTAssertEqual(b.type(of: v), .string | .float)
@@ -577,10 +577,10 @@ class JSTyperTests: XCTestCase {
         XCTAssertEqual(b.type(of: v0), .integer)
         XCTAssertEqual(b.type(of: v1), .integer)
         b.buildIfElse(v0, ifBody: {
-            b.reassign(v0, to: b.loadString("foo"))
-            b.reassign(v1, to: b.loadString("foo"))
+            b.reassign(v0, from: b.loadString("foo"))
+            b.reassign(v1, from: b.loadString("foo"))
         }, elseBody: {
-            b.reassign(v1, to: b.loadString("bar"))
+            b.reassign(v1, from: b.loadString("bar"))
         })
 
         XCTAssertEqual(b.type(of: v0), .string | .integer)
@@ -593,7 +593,7 @@ class JSTyperTests: XCTestCase {
         let i = b.loadInt(42)
         XCTAssertEqual(b.type(of: i), .integer)
         b.buildIf(i) {
-            b.reassign(i, to: b.loadString("foo"))
+            b.reassign(i, from: b.loadString("foo"))
         }
 
         XCTAssertEqual(b.type(of: i), .string | .integer)
@@ -609,11 +609,11 @@ class JSTyperTests: XCTestCase {
         b.buildIfElse(v, ifBody: {
             b.buildIfElse(v, ifBody: {
                 b.buildIfElse(v, ifBody: {
-                    b.reassign(v, to: b.loadString("foo"))
+                    b.reassign(v, from: b.loadString("foo"))
                     XCTAssertEqual(b.type(of: v), .string)
                 }, elseBody: {
                     XCTAssertEqual(b.type(of: v), .integer)
-                    b.reassign(v, to: b.loadBool(true))
+                    b.reassign(v, from: b.loadBool(true))
                     XCTAssertEqual(b.type(of: v), .boolean)
                 })
 
@@ -641,7 +641,7 @@ class JSTyperTests: XCTestCase {
                 params in XCTAssertEqual(b.type(of: params[0]), .integer)
             }
             XCTAssertEqual(b.type(of: f), .functionAndConstructor(signature))
-            b.reassign(f, to: b.loadString("foo"))
+            b.reassign(f, from: b.loadString("foo"))
             XCTAssertEqual(b.type(of: f), .string)
         }
     }
@@ -663,7 +663,7 @@ class JSTyperTests: XCTestCase {
 
                 XCTAssertEqual(b.type(of: v), .string)
                 let floatVar = b.loadFloat(13.37)
-                b.reassign(v, to: floatVar)
+                b.reassign(v, from: floatVar)
 
                 XCTAssertEqual(b.type(of: obj), .object(withProperties: ["foo", "bar"]))
                 XCTAssertEqual(b.type(of: v), .float)
@@ -1009,14 +1009,14 @@ class JSTyperTests: XCTestCase {
 
             // Logical operators produce .boolean in any case
             guard op != .LogicOr && op != .LogicAnd else { continue }
-            b.reassign(i3, to: i4, with: op)
+            b.reassign(i3, from: i4, with: op)
             XCTAssertFalse(b.type(of: i3).MayBe(.bigint))
-            b.reassign(i3, to: bi4, with: op)
+            b.reassign(i3, from: bi4, with: op)
             // This isn't really necessary, as mixing types in this way
             // would lead to an exception in JS. Currently, we handle
             // it like this though.
             XCTAssert(b.type(of: i3).MayBe(.bigint))
-            b.reassign(bi3, to: bi4, with: op)
+            b.reassign(bi3, from: bi4, with: op)
             XCTAssert(b.type(of: bi3).Is(.bigint))
         }
     }
@@ -1028,8 +1028,8 @@ class JSTyperTests: XCTestCase {
         let v1 = b.loadInt(0)
         let v2 = b.loadInt(1)
         // The header executes unconditionally, but the body does not
-        b.buildWhileLoop({ b.reassign(v1, to: b.loadString("foo")); return b.loadBool(false) }) {
-            b.reassign(v2, to: b.loadString("bar"))
+        b.buildWhileLoop({ b.reassign(v1, from: b.loadString("foo")); return b.loadBool(false) }) {
+            b.reassign(v2, from: b.loadString("bar"))
         }
 
         XCTAssertEqual(b.type(of: v1), .string)
@@ -1044,8 +1044,8 @@ class JSTyperTests: XCTestCase {
         let v2 = b.loadInt(1)
         // Both the header and the body execute unconditionally
         b.buildDoWhileLoop(do: {
-            b.reassign(v2, to: b.loadString("foo"))
-        }, while: { b.reassign(v1, to: b.loadString("bar")); return b.loadBool(false) })
+            b.reassign(v2, from: b.loadString("foo"))
+        }, while: { b.reassign(v1, from: b.loadString("bar")); return b.loadBool(false) })
 
         XCTAssertEqual(b.type(of: v1), .string)
         XCTAssertEqual(b.type(of: v2), .string)
@@ -1062,14 +1062,14 @@ class JSTyperTests: XCTestCase {
         // The initializer block and the condition block are always executed.
         // The afterthought and body block may not be executed.
         b.buildForLoop({
-            b.reassign(v1, to: b.loadString("foo"))
+            b.reassign(v1, from: b.loadString("foo"))
         }, {
-            b.reassign(v2, to: b.loadString("bar"))
+            b.reassign(v2, from: b.loadString("bar"))
             return b.loadBool(false)
         }, {
-            b.reassign(v3, to: b.loadString("baz"))
+            b.reassign(v3, from: b.loadString("baz"))
         }) {
-            b.reassign(v4, to: b.loadString("bla"))
+            b.reassign(v4, from: b.loadString("bla"))
         }
 
         XCTAssertEqual(b.type(of: v1), .string)
@@ -1121,7 +1121,7 @@ class JSTyperTests: XCTestCase {
 
                 XCTAssertEqual(b.type(of: v0), .integer)
                 let stringVar = b.loadString("foobar")
-                b.reassign(v0, to: stringVar)
+                b.reassign(v0, from: stringVar)
                 XCTAssertEqual(b.type(of: v0), .string)
             }
             swtch.addDefaultCase {
@@ -1132,7 +1132,7 @@ class JSTyperTests: XCTestCase {
 
                 XCTAssertEqual(b.type(of: v0), .integer)
                 let boolVal = b.loadBool(false)
-                b.reassign(v0, to: boolVal)
+                b.reassign(v0, from: boolVal)
                 XCTAssertEqual(b.type(of: v0), .boolean)
             }
             swtch.addCase(v4) {
@@ -1143,7 +1143,7 @@ class JSTyperTests: XCTestCase {
 
                 XCTAssertEqual(b.type(of: v0), .integer)
                 let floatVar = b.loadFloat(13.37)
-                b.reassign(v0, to: floatVar)
+                b.reassign(v0, from: floatVar)
                 XCTAssertEqual(b.type(of: v0), .float)
             }
         }
@@ -1164,7 +1164,7 @@ class JSTyperTests: XCTestCase {
             swtch.addDefaultCase {
                 XCTAssertEqual(b.type(of: i1), .integer)
                 XCTAssertEqual(b.type(of: i2), .integer)
-                b.reassign(i2, to: b.loadString("bar"))
+                b.reassign(i2, from: b.loadString("bar"))
             }
         }
 
@@ -1185,13 +1185,13 @@ class JSTyperTests: XCTestCase {
         b.buildSwitch(on: i1) { swtch in
             swtch.addCase(i2) {
                 XCTAssertEqual(b.type(of: v), .string)
-                b.reassign(v, to: b.loadFloat(13.37))
+                b.reassign(v, from: b.loadFloat(13.37))
                 XCTAssertEqual(b.type(of: v), .float)
             }
 
             swtch.addCase(i3) {
                 XCTAssertEqual(b.type(of: v), .string)
-                b.reassign(v, to: b.loadBool(false))
+                b.reassign(v, from: b.loadBool(false))
                 XCTAssertEqual(b.type(of: v), .boolean)
             }
         }

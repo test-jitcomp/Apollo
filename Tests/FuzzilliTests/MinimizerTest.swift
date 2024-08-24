@@ -251,7 +251,7 @@ class MinimizerTests: XCTestCase {
             }
             swtch.addDefaultCase(fallsThrough: false) {
                 let x = b.loadString("foobar")
-                b.reassign(num, to: x)
+                b.reassign(num, from: x)
             }
         }
 
@@ -304,7 +304,7 @@ class MinimizerTests: XCTestCase {
             swtch.addDefaultCase(fallsThrough: false) {
                 evaluator.nextInstructionIsImportant(in: b)
                 let x = b.loadString("foobar")
-                b.reassign(num, to: x)
+                b.reassign(num, from: x)
             }
         }
 
@@ -362,7 +362,7 @@ class MinimizerTests: XCTestCase {
             }
             swtch.addDefaultCase(fallsThrough: false) {
                 let x = b.loadString("foobar")
-                b.reassign(num, to: x)
+                b.reassign(num, from: x)
             }
         }
 
@@ -406,7 +406,7 @@ class MinimizerTests: XCTestCase {
             }
             swtch.addDefaultCase(fallsThrough: false) {
                 let x = b.loadString("foobar")
-                b.reassign(num, to: x)
+                b.reassign(num, from: x)
             }
         }
 
@@ -534,9 +534,9 @@ class MinimizerTests: XCTestCase {
         let u = b.loadUndefined()
         r = b.loadUndefined()
         b.buildIfElse(a1, ifBody: {
-            b.reassign(r, to: a2)
+            b.reassign(r, from: a2)
         }, elseBody: {
-            b.reassign(r, to: u)
+            b.reassign(r, from: u)
         })
         o = b.createObject(with: [:])
         b.setProperty("result", of: o, to: r)
@@ -611,25 +611,25 @@ class MinimizerTests: XCTestCase {
         var n1 = b.loadInt(42)
         var n2 = b.loadInt(43)
         var n3 = b.loadInt(44)
-        b.reassign(n3, to: n1)
+        b.reassign(n3, from: n1)
         var n4 = b.loadInt(45)
-        b.reassign(n4, to: n3)
+        b.reassign(n4, from: n3)
         b.setProperty("n4", of: o, to: n4)        // This will store n1, i.e. 42
         var c = b.loadBool(true)
         b.buildIfElse(c, ifBody: {
             let n5 = b.loadInt(46)
-            b.reassign(n1, to: n5)
+            b.reassign(n1, from: n5)
             b.setProperty("n1", of: o, to: n1)        // This will store n5, i.e. 46
             b.setProperty("n1", of: o, to: n1)        // This will (again) store n5, i.e. 46
-            b.reassign(n1, to: n2)
+            b.reassign(n1, from: n2)
             b.setProperty("n1", of: o, to: n1)        // This will store n2, i.e. 43
         }, elseBody: {
             let n6 = b.loadInt(47)
-            b.reassign(n1, to: n6)
+            b.reassign(n1, from: n6)
             b.setProperty( "n3", of: o, to: n3)        // This will still store n3, i.e. 42
         })
         b.setProperty("n1", of: o, to: n1)        // This will store n1, i.e. 42
-        b.reassign(n1, to: n2)
+        b.reassign(n1, from: n2)
         b.setProperty("n3", of: o, to: n3)        // This will store n3, i.e. 42
 
         evaluator.operationIsImportant(Reassign.self)
@@ -645,26 +645,26 @@ class MinimizerTests: XCTestCase {
         n1 = b.loadInt(42)
         n2 = b.loadInt(43)
         n3 = b.loadInt(44)
-        b.reassign(n3, to: n1)
+        b.reassign(n3, from: n1)
         n4 = b.loadInt(45)
-        b.reassign(n4, to: n3)
+        b.reassign(n4, from: n3)
         b.setProperty("n4", of: o, to: n1)
         c = b.loadBool(true)
         b.buildIfElse(c, ifBody: {
             let n5 = b.loadInt(46)
-            b.reassign(n1, to: n5)
+            b.reassign(n1, from: n5)
             b.setProperty("n1", of: o, to: n5)
             b.setProperty("n1", of: o, to: n5)
-            b.reassign(n1, to: n2)
+            b.reassign(n1, from: n2)
             b.setProperty("n1", of: o, to: n2)
         }, elseBody: {
             let n6 = b.loadInt(47)
-            b.reassign(n1, to: n6)
+            b.reassign(n1, from: n6)
             b.setProperty("n3", of: o, to: n3)
         })
         evaluator.nextInstructionIsImportant(in: b)
         b.setProperty("n1", of: o, to: n1)
-        b.reassign(n1, to: n2)
+        b.reassign(n1, from: n2)
         evaluator.nextInstructionIsImportant(in: b)
         b.setProperty("n3", of: o, to: n3)
 

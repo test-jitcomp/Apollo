@@ -1924,7 +1924,7 @@ class ProgramBuilderTests: XCTestCase {
         b.buildPlainFunction(with: .parameters(n: 1)) { args in
             let i = b.loadInt(42)
             let f = b.loadFloat(13.37)
-            b.reassign(f2, to: b.loadFloat(133.7))
+            b.reassign(f2, from: b.loadFloat(133.7))
             let o = b.createObject(with: ["i": i, "f": f])
             let o2 = b.createObject(with: ["i": i, "f": f2])
             b.binary(i, args[0], with: .Add)
@@ -1952,7 +1952,7 @@ class ProgramBuilderTests: XCTestCase {
         f2 = b.loadFloat(13.37)
         let i = b.loadInt(42)
         let f = b.loadFloat(13.37)
-        b.reassign(f2, to: b.loadFloat(133.7))      // (Possibly) mutating instruction must be included
+        b.reassign(f2, from: b.loadFloat(133.7))      // (Possibly) mutating instruction must be included
         let o = b.createObject(with: ["i": i, "f": f])
         b.setProperty("f", of: o, to: f2)     // (Possibly) mutating instruction must be included
         let object = b.loadBuiltin("Object")
@@ -2260,7 +2260,7 @@ class ProgramBuilderTests: XCTestCase {
             b.throwException(v)
         }, catchBody: { e in
             splicePoint = b.indexOfNextInstruction()
-            b.reassign(e, to: s)
+            b.reassign(e, from: s)
         })
         let original = b.finalize()
 
@@ -2332,13 +2332,13 @@ class ProgramBuilderTests: XCTestCase {
         splicePoint = b.indexOfNextInstruction()
         b.buildSwitch(on: i1) { swtch in
             swtch.addCase(i2) {
-                b.reassign(s, to: b.loadString("Bar"))
+                b.reassign(s, from: b.loadString("Bar"))
             }
             swtch.addCase(i3) {
-                b.reassign(s, to: b.loadString("Baz"))
+                b.reassign(s, from: b.loadString("Baz"))
             }
             swtch.addDefaultCase {
-                b.reassign(s, to: b.loadString("Bla"))
+                b.reassign(s, from: b.loadString("Bla"))
             }
         }
         let original = b.finalize()
@@ -2366,13 +2366,13 @@ class ProgramBuilderTests: XCTestCase {
         var s = b.loadString("Foo")
         b.buildSwitch(on: i1) { swtch in
             swtch.addCase(i2) {
-                b.reassign(s, to: b.loadString("Bar"))
+                b.reassign(s, from: b.loadString("Bar"))
             }
             swtch.addCase(i3) {
-                b.reassign(s, to: b.loadString("Baz"))
+                b.reassign(s, from: b.loadString("Baz"))
             }
             swtch.addDefaultCase {
-                b.reassign(s, to: b.loadString("Bla"))
+                b.reassign(s, from: b.loadString("Bla"))
             }
         }
         let original = b.finalize()
