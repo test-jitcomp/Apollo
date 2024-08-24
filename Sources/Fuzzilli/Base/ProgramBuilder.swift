@@ -490,6 +490,7 @@ public class ProgramBuilder {
     private func findOrGenerateArgumentsInternal(forSignature: Signature) -> [Variable] {
 
         var args: [Variable] = []
+        var numReservedVariables = 0
 
         // This should be called whenever we have a type that has known information about its properties but we don't have a constructor for it.
         // This can be the case for configuration objects, e.g. objects that can be passed into DOMAPIs.
@@ -498,12 +499,18 @@ public class ProgramBuilder {
 
             var properties: [String: Variable] = [:]
 
+            // We should reserve a slot for ourselves
+            numReservedVariables += 1
+
             for propertyName in type.properties {
                 // If we have an object that has a group, we should get a type here, otherwise if we don't have a group, we will get .anything.
                 let propType = fuzzer.environment.type(ofProperty: propertyName, on: type)
                 // Here we can enter generateType again, and end up here again if we need config objects for config objects, therefore we pass the recursion counter back into generateType, which will bail out eventually if there is a cycle.
                 properties[propertyName] = generateType(propType)
             }
+
+            // Release the slot as we will immediatedly create ourselves
+            numReservedVariables -= 1
 
             return createObject(with: properties)
         }
@@ -527,7 +534,7 @@ public class ProgramBuilder {
                 }
             }
 
-            if numVariables > argumentGenerationVariableBudget! {
+            if numVariables >= (argumentGenerationVariableBudget! - numReservedVariables) {
                 logger.warning("Reached variable generation limit in generateType for Signature: \(argumentGenerationSignature!).")
                 return randomVariable(forUseAs: type)
             }

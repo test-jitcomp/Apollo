@@ -2443,6 +2443,8 @@ class ProgramBuilderTests: XCTestCase {
 
         // Ensure first object has the right type, and that we only generated one more variable
         XCTAssert(b.type(of: args[0]).Is(typeA))
-        XCTAssertEqual(b.numberOfVisibleVariables, previous + 1)
+
+        // There are cases that we did not generate any new variables
+        XCTAssertLessThanOrEqual(b.numberOfVisibleVariables, previous + 1)
     }
 }
