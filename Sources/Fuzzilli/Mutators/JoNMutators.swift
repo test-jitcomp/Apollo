@@ -480,4 +480,209 @@ public class CallSubrtForJITMutator: JoNMutator {
     }
 }
 
+/// A JoN mutator that try to de-optimize and possibly re-compile a JIT-ed subroutine.
+///
+/// This is an opposite of CallSubrtForJITMutator. In particular, this mutator inserts a subroutine call `s` before a call `c`
+/// inside a loop. The inserted subroutine call `s` have totally different arguments from the call `c` while `s` is executed
+/// at some iterations before the last iteration. This tries to make the subroutine be de-optmized and might also be recompiled.
+///
+///     func f(...) {
+///       ...
+///     }
+///
+///     loop {
+///       f(...);
+///     }
+///
+///       v
+///
+///     func f(...) {
+///       if flag {            // Ensure all rest in f() are unexecuted
+///          ...
+///          return            // Early to avoid executing the original code of f()
+///       }
+///       ...
+///     }
+///
+///     loop N {
+///       if (exec h times) {  // Execute the inserted call at some intermediate iters
+///         flag = true;
+///         f(...);            // Try to de-optimize f(...)
+///         flag = false;
+///       }
+///       f(...);              // If h is lower enough, f(...) may be re-compiled
+///     }
+///
+/// To ensure the semantics are untouched, we also inserted an addition flag `flag` to control our behavior.  As we are
+/// not able to count how many iterations have left, we created a additional counter to counter the number of times that
+/// `f(...)` has been executed. We enable the call if the time has exceeded a predefined number.
+public class CallSubrtForDeOptMutator: Mutator {
+    let maxSimultaneousMutations: Int
+
+    // TODO: Make ourselves one of JoNMutators
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        self.maxSimultaneousMutations = maxSimultaneousMutations
+        super.init(name: name)
+    }
+
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        let subroutines = program.code.findAllSubroutines(at: 0).filter { bg in
+            ( // TODO: Support more function types
+                program.code[bg.head].op is BeginPlainFunction ||
+                program.code[bg.head].op is BeginArrowFunction
+            ) // We currently only support these types
+        }.map { bg in
+            Block(head: bg.head, tail: bg.tail, in: program.code)
+        }
+        guard subroutines.count > 0 else {
+            return nil // No subroutines to mutate
+        }
+
+        // A map of "subroutine definition index" -> ("subroutine", "calls to subroutine")
+        var candidates = [Int: (Block, [Instruction])]()
+        var contextAnalyzer = ContextAnalyzer()
+
+        // Let's find all appropriate calls to one of the subroutines
+        for instr in program.code {
+            contextAnalyzer.analyze(instr)
+            if (
+                instr.isCall && // We only focus on calls to subroutines
+                ( // TODO: Consider focus on more types of calls
+                    instr.op is CallFunction ||
+                    instr.op is CallFunctionWithSpread
+                ) && // We currently only support CallFunction
+                contextAnalyzer.context.contains(.loop) // We focus on calls inside loops
+            ) {
+                let callee = instr.inputs[0]
+                // Check if it is one of our declared subroutine
+                for subrt in subroutines {
+                    let definition = program.code[subrt.head]
+                    if definition.hasOutputs && definition.outputs[0] == callee {
+                        if !candidates.keys.contains(definition.index) {
+                            candidates[definition.index] = (subrt, [Instruction]())
+                        }
+                        var calls = candidates[definition.index]
+                        calls?.1.append(instr)
+                        candidates[definition.index] = calls
+                    }
+                }
+            }
+        }
+
+        guard candidates.count > 0 else {
+            return nil // No candidates found
+        }
+
+        // Sample subroutines and its calls for mutation
+        var toMutateSubrtDefIndices = Set<Int>()
+        for _ in 0..<Int.random(in: 1...maxSimultaneousMutations) {
+            toMutateSubrtDefIndices.insert(chooseUniform(from: candidates.map{ k, _ in k }))
+        }
+
+        var toMutateSubrts = [Block]()
+        var toMutateCallIndices = [Int]()
+        for subrtDefIndex in toMutateSubrtDefIndices {
+            if let pair = candidates[subrtDefIndex] {
+                toMutateSubrts.append(pair.0)   // We need to insert code inside the code
+                toMutateCallIndices.append(pair.1[0].index) // We only mutate the very first call
+            }
+        }
+
+        var flagCountersAfterMut = [Variable: Variable]()
+
+        // Perform mutations: For subroutines, we add a prologue; For calls, we add a pre-call.
+        b.adopting(from: program) {
+            var index = 0, toMutateIndex = 0
+            while index < program.size {
+                let instr = program.code[index]
+                if toMutateIndex < toMutateSubrts.count && index == toMutateSubrts[toMutateIndex].head {
+                    // Mutate the subroutines
+                    let subrtBlock = toMutateSubrts[toMutateIndex]
+                    let subrtInstrs = [Instruction](program.code[subrtBlock])
+                    flagCountersAfterMut[subrtInstrs[0].output] = mutateSubroutine(subrtInstrs, using: b)
+                    index = toMutateSubrts[toMutateIndex].tail + 1
+                    toMutateIndex += 1
+                } else if toMutateCallIndices.contains(index)  {
+                    // Mutate its call
+                    mutateCallToSubroutine(
+                        instr,
+                        with: flagCountersAfterMut[instr.input(0)]!,
+                        using: b
+                    )
+                    index += 1
+                } else {
+                    b.adopt(instr)
+                    index += 1
+                }
+            }
+        }
+        
+        return b.finalize()
+    }
+    
+    func mutateSubroutine(_ subrt: [Instruction], using b: ProgramBuilder) -> Variable {
+        // Create a flag and a counter; again we insert them into a container
+        let flagAndCounter = b.createArray(with: [b.loadBool(false), b.loadInt(0)])
+
+        // Adopt the subroutine first; this
+        b.adopt(subrt[0])
+
+        // Insert a neutral prologue into the subrt first
+        let prologue = b.randomProgram(n: 6)
+        b.adopting(from: prologue) {
+            b.buildIf(b.compare(
+                b.getElement(0, of: flagAndCounter),
+                with: b.loadBool(true),
+                using: .equal
+            )) {
+                for instr in prologue.code {
+                    b.adopt(instr)
+                }
+                b.doReturn(b.loadNull())
+            }
+        }
+
+        // Adopt the rest instructions
+        for instr in subrt[1..<subrt.count] {
+            b.adopt(instr)
+        }
+        
+        return flagAndCounter
+    }
+
+    func mutateCallToSubroutine(_ subrtCall: Instruction, with flagAndCounter: Variable, using b: ProgramBuilder) {
+        let subrtAfterMut = b.adopt(subrtCall.input(0))
+        // Set to begin calling the prologue
+        b.setElement(0, of: flagAndCounter, to: b.loadBool(true))
+        b.buildTryCatchFinally(tryBody: {
+            // TODO: Backtrack and utilize the loop iteration variables
+            let condition = b.compare(
+                b.getElement(1, of: flagAndCounter),
+                with: b.loadInt(Int64(defaultMaxLoopTripCountInJIT / 2)),
+                using: .greaterThanOrEqual
+            )
+            b.buildIf(condition) {
+                b.append(b.randomProgram(n: 6))
+                // Let's reuse the types different from the call so that the call
+                // is called in the interpreter stack (but might be recompiled,
+                // depending on the rest number of iterations).
+                b.callFunction(subrtAfterMut, withArgs: b.randomVariables(
+                    preferablyNotOfTypes: subrtCall.inputs[1..<subrtCall.numInputs].map{
+                        b.type(of: $0)
+                    }
+                ))
+            }
+        }, catchBody: { _ in
+            // We dismiss the exception to avoid any unexpected behaviors
+            return
+        }, finallyBody: {
+            // Set to stop calling the prologue
+            b.setElement(0, of: flagAndCounter, to: b.loadBool(false))
+        })
+        // Adopt the call
+        b.adopt(subrtCall)
+        b.updateElement(1, of: flagAndCounter, with: b.loadInt(1), using: .Add)
+    }
+}
+
 // TODO: Add some duck types and mutate by duck types
