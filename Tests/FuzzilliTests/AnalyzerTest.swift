@@ -202,13 +202,13 @@ class AnalyzerTests: XCTestCase {
 
         XCTAssertEqual(b.context, .javascript)
         let _ = b.buildCodeString() {
-            XCTAssertEqual(b.context, .javascript)
+            XCTAssertEqual(b.context, [.javascript, .codeString])
             b.buildRepeatLoop(n: 10) { _ in
                 b.loadInt(1337)
-                XCTAssertEqual(b.context, [.javascript, .loop])
+                XCTAssertEqual(b.context, [.javascript, .loop, .codeString])
                 let _ = b.buildCodeString() {
                     b.loadString("hello world")
-                    XCTAssertEqual(b.context, [.javascript])
+                    XCTAssertEqual(b.context, [.javascript, .codeString])
                 }
             }
         }
