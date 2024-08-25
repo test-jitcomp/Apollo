@@ -401,6 +401,7 @@ public class CallSubrtForJITMutator: JoNMutator {
 
     override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
         guard let progUnderMut = progUnderMut else {
+            adoptSubroutineByDefault(subrt, b)
             return
         }
 
