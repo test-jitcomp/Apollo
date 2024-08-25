@@ -113,7 +113,12 @@ public class PlainInsNeuLoopMutator: JITMutator {
     }
 
     override func canMutateInstruction(_ i: Instruction) -> Bool {
-        return !contextAnalyzer.context.contains(.subroutine)
+        return (
+            // We are a plain instruction mutator, we don't work in subroutines
+            !contextAnalyzer.context.contains(.subroutine) &&
+            // We stay away from code strings (see JoNMutators)
+            !contextAnalyzer.context.contains(.codeString)
+        )
     }
 
     public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
@@ -151,6 +156,11 @@ public class JoNMutator: BaseSubroutineMutator {
             contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
             !contextAnalyzer.context.contains(.loop) &&
+            // We don't insert code in a code string as the inserted may generate
+            // template strings, which the original JavaScriptLifter fails to work
+            // with (there's a bug inside it). Even though we fixed it, we conservatively
+            // stay away from code strings as there might be further unexpected issues.
+            !contextAnalyzer.context.contains(.codeString) &&
             // We cannot be any dead code
             !deadCodeAnalyzer.currentlyInDeadCode &&
             // We then delegate to our children for further checks
