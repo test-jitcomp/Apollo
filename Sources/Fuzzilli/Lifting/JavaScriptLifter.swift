@@ -523,13 +523,13 @@ public class JavaScriptLifter: Lifter {
                 assert(!op.parts.isEmpty)
                 assert(op.parts.count == instr.numInputs + 1)
                 var parts = [op.parts[0]]
-                for i in 1..<op.parts.count {
-                    let VALUE = input(i - 1)
-                    parts.append("${\(VALUE)}\(op.parts[i])")
-                }
                 // See BeginCodeString case.
                 let count = Int(pow(2, Double(codeStringNestingLevel)))-1
                 let escapeSequence = String(repeating: "\\", count: count)
+                for i in 1..<op.parts.count {
+                    let VALUE = input(i - 1)
+                    parts.append("\(escapeSequence)${\(VALUE)}\(op.parts[i])")
+                }
                 let expr = TemplateLiteral.new("\(escapeSequence)`" + parts.joined() + "\(escapeSequence)`")
                 w.assign(expr, to: instr.output)
 
