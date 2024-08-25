@@ -106,6 +106,10 @@ class InsertChksumOpMutator: Mutator {
 /// A simple JIT mutator that inserts a neutral loop into a random program point
 public class PlainInsNeuLoopMutator: JITMutator {
 
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
+
     override func canMutateInstruction(_ i: Instruction) -> Bool {
         return (
             // We are a plain instruction mutator, we don't work in subroutines
@@ -123,11 +127,14 @@ public class PlainInsNeuLoopMutator: JITMutator {
 
 /// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
-    var contextAnalyzer = ContextAnalyzer()
-    var deadCodeAnalyzer = DeadCodeAnalyzer()
+    let canBeInLoop: Bool
     var progUnderMut: Program? = nil
 
-    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+    var contextAnalyzer = ContextAnalyzer()
+    var deadCodeAnalyzer = DeadCodeAnalyzer()
+
+    init(name: String? = nil, maxSimultaneousMutations: Int = 1, canBeInLoop: Bool = false) {
+        self.canBeInLoop = canBeInLoop
         // As we will add a try-catch block over the whole program.
         // Our mutations for subroutines are performed at depth 1.
         super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, mutateSubrtsAtDepth: 0)
@@ -146,7 +153,7 @@ public class JoNMutator: BaseSubroutineMutator {
             // We must be in a normal .javascript context
             contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
-            !contextAnalyzer.context.contains(.loop) &&
+            (canBeInLoop || !contextAnalyzer.context.contains(.loop)) &&
             // We don't insert code in a code string as the inserted may generate
             // template strings, which the original JavaScriptLifter fails to work
             // with (there's a bug inside it). Even though we fixed it, we conservatively
@@ -196,7 +203,11 @@ public class JoNMutator: BaseSubroutineMutator {
 ///
 /// The inserted neutral loop are wrapped by a try-catch block to dismiss any possble exceptions.
 public class InsNeuLoopForJITMutator: JoNMutator {
-    
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
+
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return s != nil && !contextAnalyzer.context.contains(.objectLiteral) // We can mutate any subroutines
     }
@@ -246,6 +257,10 @@ public class InsNeuLoopForJITMutator: JoNMutator {
 ///
 /// The flag is to control the execution of the instruction being wrapped.
 public class WrapInstrForJITMutator: JoNMutator {
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
 
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return (
@@ -368,6 +383,10 @@ public class WrapInstrForJITMutator: JoNMutator {
 /// To ensure JIT compilation, the flag is set to true and the subroutine is executed
 /// mutiple times. After that, the flag is set to false and the call is re-executed.
 public class CallSubrtForJITMutator: JoNMutator {
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
 
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return (

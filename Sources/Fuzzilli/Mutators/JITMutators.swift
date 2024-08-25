@@ -44,8 +44,15 @@ extension ProgramBuilder {
 
 /// A JIT mutator is basically an instruction mutator
 public class JITMutator: BaseInstructionMutator {
-    var contextAnalyzer = ContextAnalyzer()
+    let canBeInLoop: Bool
     var progUnderMut: Program? = nil
+
+    var contextAnalyzer = ContextAnalyzer()
+
+    init(name: String? = nil, maxSimultaneousMutations: Int = 1, canBeInLoop: Bool = false) {
+        self.canBeInLoop = canBeInLoop
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations)
+    }
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
@@ -59,7 +66,7 @@ public class JITMutator: BaseInstructionMutator {
             contextAnalyzer.context.contains(.javascript) &&
             // Basically, we cannot apply mutation inside a loop, otherwise,
             // adding new loops may cause the program to run overly long.
-            !contextAnalyzer.context.contains(.loop) &&
+            (canBeInLoop || !contextAnalyzer.context.contains(.loop)) &&
             // Then we delegate to our children for further checks
             canMutateInstruction(i)
         )
@@ -91,6 +98,10 @@ public class JITMutator: BaseInstructionMutator {
 /// The JIT compilation should be guaranteed; however, this depends on the loop trop.
 public class SubrtJITCompMutator: JITMutator {
 
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
+
     override func canMutateInstruction(_ i: Instruction) -> Bool {
         return !contextAnalyzer.context.contains(.subroutine)
     }
@@ -120,6 +131,10 @@ public class SubrtJITCompMutator: JITMutator {
 ///
 /// The JIT compilation should be guaranteed; however, this depends on the loop trop.
 public class CallJITCompMutator: JITMutator {
+
+    public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: false)
+    }
 
     override func canMutateInstruction(_ i: Instruction) -> Bool {
         return (
