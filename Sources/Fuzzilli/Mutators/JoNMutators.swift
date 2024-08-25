@@ -516,14 +516,33 @@ public class CallSubrtForJITMutator: JoNMutator {
 /// To ensure the semantics are untouched, we also inserted an addition flag `flag` to control our behavior.  As we are
 /// not able to count how many iterations have left, we created a additional counter to counter the number of times that
 /// `f(...)` has been executed. We enable the call if the time has exceeded a predefined number.
-public class CallSubrtForDeOptMutator: Mutator {
-    let maxSimultaneousMutations: Int
+public class CallSubrtForDeOptMutator: JoNMutator {
 
-    // TODO: Make ourselves one of JoNMutators
     public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
-        self.maxSimultaneousMutations = maxSimultaneousMutations
-        super.init(name: name)
+        super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, canBeInLoop: true)
     }
+
+    // We are a fake JoN mutator so we abandon all JoNMutator's methods
+    override func beginMutation(of p: Program, using b: ProgramBuilder) {
+        fatalError("This method cannot be called !!")
+    }
+
+    override func canMutate(_ s: Instruction?, _ i: Instruction) -> Bool {
+        fatalError("This method cannot be called !!")
+    }
+
+    override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
+        fatalError("This method cannot be called !!")
+    }
+
+    override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ builder: ProgramBuilder) {
+        fatalError("This method cannot be called !!")
+    }
+
+    override func endMutation(of p: Program, using b: ProgramBuilder) {
+        fatalError("This method cannot be called !!")
+    }
+    // We are a fake JoN mutator so we abandon all JoNMutator's methods
 
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         let subroutines = program.code.findAllSubroutines(at: 0).filter { bg in

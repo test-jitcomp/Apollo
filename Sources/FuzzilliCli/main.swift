@@ -419,6 +419,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         (InsNeuLoopForJITMutator(),         4),
         (WrapInstrForJITMutator(),          2),
         (CallSubrtForJITMutator(),          2),
+        (CallSubrtForDeOptMutator(),        1),
     ])
     if ["jonmut"].contains(engineName) {
         logger.info("Enabled JoN mutators: \(jonMutators.map { $0.name })")
