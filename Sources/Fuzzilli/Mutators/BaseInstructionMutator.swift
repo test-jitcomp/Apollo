@@ -22,7 +22,7 @@ public class BaseInstructionMutator: Mutator {
         super.init(name: name)
     }
 
-    override final func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         beginMutation(of: program, using: b)
 
         var candidates = [Int]()
@@ -57,20 +57,20 @@ public class BaseInstructionMutator: Mutator {
     }
 
     /// Can be overwritten by child classes.
-    public func beginMutation(of program: Program, using builder: ProgramBuilder) {}
+    func beginMutation(of program: Program, using builder: ProgramBuilder) {}
 
     /// Can be overwritten by child classes.
-    public func endMutation(of program: Program, using builder: ProgramBuilder) {}
+    func endMutation(of program: Program, using builder: ProgramBuilder) {}
 
     /// Overridden by child classes.
     /// Determines the set of instructions that can be mutated by this mutator
-    public func canMutate(_ instr: Instruction) -> Bool {
+    func canMutate(_ instr: Instruction) -> Bool {
         fatalError("This method must be overridden")
     }
 
     /// Overridden by child classes.
     /// Mutate a single statement
-    public func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
+    func mutate(_ instr: Instruction, _ builder: ProgramBuilder) {
         fatalError("This method must be overridden")
     }
 }

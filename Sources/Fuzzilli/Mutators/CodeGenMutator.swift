@@ -24,12 +24,12 @@ public class CodeGenMutator: BaseInstructionMutator {
         assert(defaultCodeGenerationAmount >= ProgramBuilder.minBudgetForRecursiveCodeGeneration)
     }
 
-    public override func beginMutation(of program: Program, using builder: ProgramBuilder) {
+    override func beginMutation(of program: Program, using builder: ProgramBuilder) {
         deadCodeAnalyzer = DeadCodeAnalyzer()
         variableAnalyzer = VariableAnalyzer()
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    override func canMutate(_ instr: Instruction) -> Bool {
         deadCodeAnalyzer.analyze(instr)
         variableAnalyzer.analyze(instr)
         // We can only generate code if there are some visible variables to use, and it only
@@ -37,7 +37,7 @@ public class CodeGenMutator: BaseInstructionMutator {
         return variableAnalyzer.visibleVariables.count >= minVisibleVariables && !deadCodeAnalyzer.currentlyInDeadCode
     }
 
-    public override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
         b.adopt(instr)
         assert(b.numberOfVisibleVariables >= minVisibleVariables)
         b.build(n: defaultCodeGenerationAmount, by: .generating)

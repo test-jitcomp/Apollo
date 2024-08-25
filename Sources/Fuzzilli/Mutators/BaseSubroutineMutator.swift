@@ -50,7 +50,7 @@ public class BaseSubroutineMutator: Mutator {
         super.init(name: name)
     }
     
-    public override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         beginMutation(of: program, using: b)
         
         let allSubrts: [Block] = program.code.findAllSubroutines(at: mutateSubrtsAtDepth).map{
@@ -130,21 +130,21 @@ public class BaseSubroutineMutator: Mutator {
     }
     
     /// Can be overwritten by child classes.
-    public func beginMutation(of program: Program, using builder: ProgramBuilder) {}
+    func beginMutation(of program: Program, using builder: ProgramBuilder) {}
     
     /// Can be overwritten by child classes.
-    public func endMutation(of program: Program, using builder: ProgramBuilder) {}
+    func endMutation(of program: Program, using builder: ProgramBuilder) {}
     
     /// Overridden by child classes.
     /// Check if the subroutine, specifically at the instruction, can be mutated by the mutator.
     /// The method will be iterated over all instructions of a program, regardless of if the subroutine of an instruction was already considered mutable.
-    public func canMutate(_ subrt: Instruction?, _ instr: Instruction) -> Bool {
+    func canMutate(_ subrt: Instruction?, _ instr: Instruction) -> Bool {
         fatalError("This method must be overriden")
     }
     
     /// Overridden by child classes.
     /// Mutate a single subroutine; where mutable saves the canMutate() results for this subroutine
-    public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ builder: ProgramBuilder) {
+    func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ builder: ProgramBuilder) {
         fatalError("This method must be overridden")
     }
 }

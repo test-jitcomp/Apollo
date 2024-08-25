@@ -30,11 +30,11 @@ public class InputMutator: BaseInstructionMutator {
         super.init(name: isTypeAware ? "InputMutator (type aware)" : "InputMutator", maxSimultaneousMutations: maxSimultaneousMutations)
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    override func canMutate(_ instr: Instruction) -> Bool {
         return instr.numInputs > 0
     }
 
-    public override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
         var inouts = b.adopt(instr.inouts)
 
         // Replace one input

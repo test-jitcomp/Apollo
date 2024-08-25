@@ -21,17 +21,17 @@ public class SpliceMutator: BaseInstructionMutator {
         super.init(maxSimultaneousMutations: defaultMaxSimultaneousMutations)
     }
 
-    public override func beginMutation(of program: Program, using builder: ProgramBuilder) {
+    override func beginMutation(of program: Program, using builder: ProgramBuilder) {
         deadCodeAnalyzer = DeadCodeAnalyzer()
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    override func canMutate(_ instr: Instruction) -> Bool {
         deadCodeAnalyzer.analyze(instr)
         // It only makes sense to copy code if we're not currently in dead code.
         return !deadCodeAnalyzer.currentlyInDeadCode
     }
 
-    public override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
         b.adopt(instr)
         b.build(n: defaultCodeGenerationAmount, by: .splicing)
     }

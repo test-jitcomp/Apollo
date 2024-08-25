@@ -20,12 +20,12 @@ public class CombineMutator: BaseInstructionMutator {
 
     public init() {}
 
-    public override func beginMutation(of program: Program, using builder: ProgramBuilder) {
+    override func beginMutation(of program: Program, using builder: ProgramBuilder) {
         deadCodeAnalyzer = DeadCodeAnalyzer()
         contextAnalyzer = ContextAnalyzer()
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    override func canMutate(_ instr: Instruction) -> Bool {
         deadCodeAnalyzer.analyze(instr)
         contextAnalyzer.analyze(instr)
         let inDeadCode = deadCodeAnalyzer.currentlyInDeadCode
@@ -36,7 +36,7 @@ public class CombineMutator: BaseInstructionMutator {
         return !inDeadCode && inScriptContext
     }
 
-    public override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
         b.adopt(instr)
         let other = b.fuzzer.corpus.randomElementForSplicing()
         b.trace("Inserting program \(other.id)")

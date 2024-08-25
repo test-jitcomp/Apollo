@@ -18,14 +18,14 @@ public class OperationMutator: BaseInstructionMutator {
         super.init(maxSimultaneousMutations: defaultMaxSimultaneousMutations)
     }
 
-    public override func canMutate(_ instr: Instruction) -> Bool {
+    override func canMutate(_ instr: Instruction) -> Bool {
         // The OperationMutator handles both mutable and variadic operations since both require
         // modifying the operation and both types of mutations are approximately equally "useful",
         // so there's no need for a dedicated "VariadicOperationMutator".
         return instr.isOperationMutable || instr.isVariadic
     }
 
-    public override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ instr: Instruction, _ b: ProgramBuilder) {
         b.trace("Mutating next operation")
 
         let newInstr: Instruction

@@ -54,12 +54,12 @@ public class JITMutator: BaseInstructionMutator {
         super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations)
     }
 
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
+    override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
         progUnderMut = p
     }
 
-    final public override func canMutate(_ i: Instruction) -> Bool {
+    override func canMutate(_ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
         return (
             // We must be in a normal .javascript context
@@ -72,7 +72,7 @@ public class JITMutator: BaseInstructionMutator {
         )
     }
 
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+    override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
         progUnderMut = nil
     }
@@ -106,7 +106,7 @@ public class SubrtJITCompMutator: JITMutator {
         return !contextAnalyzer.context.contains(.subroutine)
     }
 
-    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         b.adopt(i)
         // Insert a loop after the instruction to make the surrounding subroutine JIT compiled
         b.buildPrefix()
@@ -143,7 +143,7 @@ public class CallJITCompMutator: JITMutator {
         )
     }
 
-    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         // Adopt the instruction first otherwise the output variable won't be visible
         b.adopt(i)
         // Wrap the instruction with a loop such that the called function/method can be JITted
@@ -172,7 +172,7 @@ public class CallJITCompMutator: JITMutator {
 /// The de-optimization is not guaranteed, but possibly to occur.
 public class CallDeOptMutator: CallJITCompMutator {
 
-    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         // Wrap the instruction by a loop to enable JIT compilation
         super.mutate(i, b)
 
@@ -225,7 +225,7 @@ public class CallDeOptMutator: CallJITCompMutator {
 /// Both de-optimization and re-compilation are not guaranteed, but possibly to occur.
 public class CallReCompMutator: CallDeOptMutator {
 
-    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         // Trigger JIT compilation then de-optimization on the instruction
         super.mutate(i, b)
 

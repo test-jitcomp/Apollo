@@ -34,7 +34,7 @@ extension ProgramBuilder {
     ///
     /// Let's embed the neutral loop into a brand new, small program which has no
     /// connections to the program under mutation
-    func randomNeutralLoop(n: Int = 10, forMutating program: Program) -> Program {
+    public func randomNeutralLoop(n: Int = 10, forMutating program: Program) -> Program {
         // We create a new program to avoid any connections to program
         return randomProgram(forMutating: program) { b in
             // We wrap by a try-catch to dismiss any possible exceptions
@@ -119,7 +119,7 @@ public class PlainInsNeuLoopMutator: JITMutator {
         )
     }
 
-    public override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
+    override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         b.adopt(i)
         b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
     }
@@ -140,13 +140,13 @@ public class JoNMutator: BaseSubroutineMutator {
         super.init(name: name, maxSimultaneousMutations: maxSimultaneousMutations, mutateSubrtsAtDepth: 0)
     }
 
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
+    override func beginMutation(of p: Program, using b: ProgramBuilder) {
         progUnderMut = p
         contextAnalyzer = ContextAnalyzer()
         deadCodeAnalyzer = DeadCodeAnalyzer()
     }
     
-    final public override func canMutate(_ s: Instruction?, _ i: Instruction) -> Bool {
+    override func canMutate(_ s: Instruction?, _ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
         deadCodeAnalyzer.analyze(i)
         return (
@@ -166,7 +166,7 @@ public class JoNMutator: BaseSubroutineMutator {
         )
     }
 
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
+    override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
         progUnderMut = nil
     }
@@ -212,7 +212,7 @@ public class InsNeuLoopForJITMutator: JoNMutator {
         return s != nil && !contextAnalyzer.context.contains(.objectLiteral) // We can mutate any subroutines
     }
     
-    override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
+    override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
         guard let progUnderMut = progUnderMut else {
             adoptSubroutineByDefault(subrt, b)
             return // No available program points
@@ -269,7 +269,7 @@ public class WrapInstrForJITMutator: JoNMutator {
         )
     }
 
-    override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
+    override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
         guard subrt.count > 2, let progUnderMut = progUnderMut else {
             adoptSubroutineByDefault(subrt, b)
             return // No instructions to wrap
@@ -399,7 +399,7 @@ public class CallSubrtForJITMutator: JoNMutator {
         )
     }
 
-    override public func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
+    override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
         guard let progUnderMut = progUnderMut else {
             adoptSubroutineByDefault(subrt, b)
             return
@@ -620,7 +620,7 @@ public class CallSubrtForDeOptMutator: Mutator {
         return b.finalize()
     }
     
-    func mutateSubroutine(_ subrt: [Instruction], using b: ProgramBuilder) -> Variable {
+    private func mutateSubroutine(_ subrt: [Instruction], using b: ProgramBuilder) -> Variable {
         // Create a flag and a counter; again we insert them into a container
         let flagAndCounter = b.createArray(with: [b.loadBool(false), b.loadInt(0)])
 
@@ -650,7 +650,7 @@ public class CallSubrtForDeOptMutator: Mutator {
         return flagAndCounter
     }
 
-    func mutateCallToSubroutine(_ subrtCall: Instruction, with flagAndCounter: Variable, using b: ProgramBuilder) {
+    private func mutateCallToSubroutine(_ subrtCall: Instruction, with flagAndCounter: Variable, using b: ProgramBuilder) {
         let subrtAfterMut = b.adopt(subrtCall.input(0))
         // Set to begin calling the prologue
         b.setElement(0, of: flagAndCounter, to: b.loadBool(true))
