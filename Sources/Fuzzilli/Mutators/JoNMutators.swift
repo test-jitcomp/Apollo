@@ -105,12 +105,6 @@ class InsertChksumOpMutator: Mutator {
 
 /// A simple JIT mutator that inserts a neutral loop into a random program point
 public class PlainInsNeuLoopMutator: JITMutator {
-    var progUnderMut: Program? = nil
-
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
-        super.beginMutation(of: p, using: b)
-        progUnderMut = p
-    }
 
     override func canMutateInstruction(_ i: Instruction) -> Bool {
         return (
@@ -125,17 +119,13 @@ public class PlainInsNeuLoopMutator: JITMutator {
         b.adopt(i)
         b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
     }
-
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
-        super.endMutation(of: p, using: b)
-        progUnderMut = nil
-    }
 }
 
 /// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
     var contextAnalyzer = ContextAnalyzer()
     var deadCodeAnalyzer = DeadCodeAnalyzer()
+    var progUnderMut: Program? = nil
 
     public init(name: String? = nil, maxSimultaneousMutations: Int = 1) {
         // As we will add a try-catch block over the whole program.
@@ -144,6 +134,7 @@ public class JoNMutator: BaseSubroutineMutator {
     }
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
+        progUnderMut = p
         contextAnalyzer = ContextAnalyzer()
         deadCodeAnalyzer = DeadCodeAnalyzer()
     }
@@ -170,6 +161,7 @@ public class JoNMutator: BaseSubroutineMutator {
 
     public override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
+        progUnderMut = nil
     }
 
     func adoptSubroutineByDefault(_ subrt: [Instruction], _ b: ProgramBuilder) {
@@ -204,12 +196,6 @@ public class JoNMutator: BaseSubroutineMutator {
 ///
 /// The inserted neutral loop are wrapped by a try-catch block to dismiss any possble exceptions.
 public class InsNeuLoopForJITMutator: JoNMutator {
-    var progUnderMut: Program? = nil
-
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
-        super.beginMutation(of: p, using: b)
-        progUnderMut = p
-    }
     
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return s != nil && !contextAnalyzer.context.contains(.objectLiteral) // We can mutate any subroutines
@@ -233,11 +219,6 @@ public class InsNeuLoopForJITMutator: JoNMutator {
                 b.append(b.randomNeutralLoop(forMutating: progUnderMut))
             }
         }
-    }
-
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
-        super.endMutation(of: p, using: b)
-        progUnderMut = nil
     }
 }
 
@@ -265,12 +246,6 @@ public class InsNeuLoopForJITMutator: JoNMutator {
 ///
 /// The flag is to control the execution of the instruction being wrapped.
 public class WrapInstrForJITMutator: JoNMutator {
-    var progUnderMut: Program? = nil
-
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
-        super.beginMutation(of: p, using: b)
-        progUnderMut = p
-    }
 
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return (
@@ -352,11 +327,6 @@ public class WrapInstrForJITMutator: JoNMutator {
             }
         }
     }
-
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
-        super.endMutation(of: p, using: b)
-        progUnderMut = nil
-    }
 }
 
 /// A JoN mutator that pre-calls a subroutine to make it JIT compile.
@@ -398,12 +368,6 @@ public class WrapInstrForJITMutator: JoNMutator {
 /// To ensure JIT compilation, the flag is set to true and the subroutine is executed
 /// mutiple times. After that, the flag is set to false and the call is re-executed.
 public class CallSubrtForJITMutator: JoNMutator {
-    var progUnderMut: Program? = nil
-
-    public override func beginMutation(of p: Program, using b: ProgramBuilder) {
-        super.beginMutation(of: p, using: b)
-        progUnderMut = p
-    }
 
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return (
@@ -493,11 +457,6 @@ public class CallSubrtForJITMutator: JoNMutator {
             // Set to stop calling the prologue
             b.setElement(0, of: flagContainer, to: b.loadBool(false))
         })
-    }
-
-    public override func endMutation(of p: Program, using b: ProgramBuilder) {
-        super.endMutation(of: p, using: b)
-        progUnderMut = nil
     }
 }
 

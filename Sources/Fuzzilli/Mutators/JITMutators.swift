@@ -45,9 +45,11 @@ extension ProgramBuilder {
 /// A JIT mutator is basically an instruction mutator
 public class JITMutator: BaseInstructionMutator {
     var contextAnalyzer = ContextAnalyzer()
+    var progUnderMut: Program? = nil
 
     public override func beginMutation(of p: Program, using b: ProgramBuilder) {
         contextAnalyzer = ContextAnalyzer()
+        progUnderMut = p
     }
 
     final public override func canMutate(_ i: Instruction) -> Bool {
@@ -65,6 +67,7 @@ public class JITMutator: BaseInstructionMutator {
 
     public override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
+        progUnderMut = nil
     }
 
     /// Overridden by child classes.
