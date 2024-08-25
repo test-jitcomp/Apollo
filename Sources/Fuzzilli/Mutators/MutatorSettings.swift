@@ -1,4 +1,5 @@
 // Copyright 2020 Google LLC
+// Copyright 2024 Cong Li (congli@smail.nju.edu.cn, cong.li@inf.ethz.ch)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,3 +21,10 @@
 let defaultMaxSimultaneousMutations = 7
 let defaultMaxSimultaneousCodeGenerations = 3
 let defaultCodeGenerationAmount = 5      // This must be at least ProgramBuilder.minBudgetForRecursiveCodeGeneration
+
+
+// The settings below are for JIT mutators and JoN mutators. These settings should make a good balance between execution
+// time and code coverage. In addition, some of these settings has to be align with specific engines.
+
+let defaultMaxLoopTripCountInJIT = 921  // TODO: Investigate V8/JSC/SpiderMonkey/etc. to find an appropriate count
+let defaultSmallCodeBlockSize = 10 // TODO: Is this a good number?
