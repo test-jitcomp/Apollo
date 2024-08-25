@@ -49,6 +49,8 @@ public struct Context: OptionSet {
     public static let switchBlock       = Context(rawValue: 1 << 10)
     // Inside a switch case.
     public static let switchCase        = Context(rawValue: 1 << 11)
+    // Inside a code string.
+    public static let codeString        = Context(rawValue: 1 << 12)
 
     public static let empty             = Context([])
 }

@@ -2099,7 +2099,7 @@ final class BeginCodeString: JsOperation {
     override var opcode: Opcode { .beginCodeString(self) }
 
     init() {
-        super.init(numOutputs: 1, attributes: [.isBlockStart], contextOpened: .javascript)
+        super.init(numOutputs: 1, attributes: [.isBlockStart], contextOpened: [.javascript, .codeString])
     }
 }
 
