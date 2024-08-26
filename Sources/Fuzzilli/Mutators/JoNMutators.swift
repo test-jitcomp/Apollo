@@ -68,38 +68,98 @@ extension ProgramBuilder {
 /// The try-finally block ensures that the chksum are always output.
 class InsertChksumOpMutator: Mutator {
 
+    // When enabled, the mutator inserts chksum operations randomly at a program's every point.
+    // Otherwise, the mutator conservatively inserts the operations using some heuristics.
+    let aggressive: Bool
+
+    // The probability to insert a chksum operation at a program point
+    let probaInsertion: Double
+
+    public init(name: String? = nil, aggressive: Bool = true) {
+        self.aggressive = aggressive
+        self.probaInsertion = aggressive ? 0.2 : 0.33
+        super.init(name: name)
+    }
+
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        return aggressive
+            ? self.aggresMutate(program, using: b, for: fuzzer)
+            : self.conserMutate(program, using: b, for: fuzzer)
+    }
+
+    private func aggresMutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         var contextAnalyzer = ContextAnalyzer()
 
-        let chkSumIndex = Int64(JavaScriptCompatLifter.chksumIndexInContainer)
-        let chkSumContainer = b.loadNamedVariable(
-            JavaScriptCompatLifter.chksumContainerName
-        )
+        let chksumContainer = loadChksumContainer(using: b)
         b.adopting(from: program) {
             for instr in program.code {
                 b.adopt(instr)
                 contextAnalyzer.analyze(instr)
                 // Insert some add/sub/mul/... operations over the checksum
                 if (
-                    probability(0.2) &&
+                    probability(probaInsertion) &&
+                    // As long as we are in a JavaScript context.
                     contextAnalyzer.context.isSuperset(of: .javascript)
                 ) {
-                    b.updateElement(
-                        chkSumIndex,
-                        of: chkSumContainer,
-                        with: b.loadInt(Int64.random(in: 1...25536)),
-                        using: withEqualProbability(
-                            {.Add}, {.Sub}, {.Mul}, // Discard .Div and .Mod to avoid DivByZero
-                            {.BitAnd}, {.BitOr}, {.Xor},
-                            {.LogicOr}, {.LogicAnd},
-                            {.LShift}, {.RShift}, {.UnRShift}
-                        )
-                    )
+                    updateChksumValue(in: chksumContainer, using: b)
                 }
             }
         }
 
         return b.finalize()
+    }
+
+    private func conserMutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        var contextAnalyzer = ContextAnalyzer()
+
+        let chksumContainer = loadChksumContainer(using: b)
+        b.adopting(from: program) {
+            for instr in program.code {
+                b.adopt(instr)
+                contextAnalyzer.analyze(instr)
+                // Insert some add/sub/mul/... operations over the checksum
+                if (
+                    probability(probaInsertion) &&
+                    contextAnalyzer.context.contains(.javascript) &&
+
+                    // TODO: This is too conservatively and we may miss many JIT bugs
+                    // Perhaps analyze if the function has been used as arguments;
+                    // If yes, we don't insert; otherwise, let's insert some.
+
+                    // We do not prefer subroutines as when the subroutine is used
+                    // as like an argument of other subroutines, it may introduce
+                    // unexpected behaviors. For example, the stack size is different
+                    // in different engines, a stack overflow may generate unequal
+                    // number of chksum updates at runtime, causing the final chksum
+                    // value to be different in different engines; this is bad
+                    // for differential testing, especially for miscompilation bugs.
+                    !contextAnalyzer.context.contains(.subroutine)
+                ) {
+                    updateChksumValue(in: chksumContainer, using: b)
+                }
+            }
+        }
+
+        return b.finalize()
+    }
+
+    private func loadChksumContainer(using b: ProgramBuilder) -> Variable {
+        return b.loadNamedVariable(JavaScriptCompatLifter.chksumContainerName)
+    }
+
+    private func updateChksumValue(in chkSumContainer: Variable, using b: ProgramBuilder) {
+        let chksumIndex = Int64(JavaScriptCompatLifter.chksumIndexInContainer)
+        b.updateElement(
+            chksumIndex,
+            of: chkSumContainer,
+            with: b.loadInt(Int64.random(in: 1...25536)),
+            using: withEqualProbability(
+                {.Add}, {.Sub}, {.Mul}, // Discard .Div and .Mod to avoid DivByZero
+                {.BitAnd}, {.BitOr}, {.Xor},
+                {.LogicOr}, {.LogicAnd},
+                {.LShift}, {.RShift}, {.UnRShift}
+            )
+        )
     }
 }
 
