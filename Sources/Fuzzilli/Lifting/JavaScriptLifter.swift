@@ -20,11 +20,34 @@ public enum ECMAScriptVersion {
     case es6
 }
 
+/// Optimizing options to enable/disable when emitting JavaScript
+public struct JavaScriptOptimOptions: OptionSet {
+    public let rawValue: Int
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+
+    // Allow inline expressions (see JavaScriptWriter.assign())
+    public static let allowInliningExpressions  = JavaScriptOptimOptions(rawValue: 1 << 0)
+    // Allow optimizing reassignments (see JavaScriptWriter.reassign())
+    public static let allowOptimizingReassign   = JavaScriptOptimOptions(rawValue: 1 << 1)
+
+    // Enable all optimizing options
+    public static let allowAllOptimizations     = JavaScriptOptimOptions([
+        .allowInliningExpressions, .allowOptimizingReassign
+    ])
+    // Disable all optimizing options
+    public static let disallowAllOptimizations  = JavaScriptOptimOptions([])
+}
+
 /// Lifts a FuzzIL program to JavaScript.
 public class JavaScriptLifter: Lifter {
     /// Prefix and suffix to surround the emitted code in
     private let prefix: String
     private let suffix: String
+
+    /// Optimizations to enable or disable
+    let optimOptions: JavaScriptOptimOptions
 
     /// The version of the ECMAScript standard that this lifter generates code for.
     let version: ECMAScriptVersion
@@ -45,9 +68,11 @@ public class JavaScriptLifter: Lifter {
 
     public init(prefix: String = "",
                 suffix: String = "",
+                optimOptions: JavaScriptOptimOptions = .allowAllOptimizations,
                 ecmaVersion: ECMAScriptVersion) {
         self.prefix = prefix
         self.suffix = suffix
+        self.optimOptions = optimOptions
         self.version = ecmaVersion
     }
 
@@ -65,7 +90,7 @@ public class JavaScriptLifter: Lifter {
         }
         analyzer.finishAnalysis()
 
-        var w = JavaScriptWriter(analyzer: analyzer, version: version, stripComments: !options.contains(.includeComments), includeLineNumbers: options.contains(.includeLineNumbers))
+        var w = JavaScriptWriter(analyzer: analyzer, version: version, optimOptions: self.optimOptions, stripComments: !options.contains(.includeComments), includeLineNumbers: options.contains(.includeLineNumbers))
 
         if options.contains(.includeComments), let header = program.comments.at(.header) {
             w.emitComment(header)
@@ -1514,6 +1539,9 @@ public class JavaScriptLifter: Lifter {
         private var writer: ScriptWriter
         private var analyzer: DefUseAnalyzer
 
+        /// Optimizations to enable or disable
+        let optimOptions: JavaScriptOptimOptions
+
         /// Variable declaration keywords to use.
         let varKeyword: String
         let constKeyword: String
@@ -1545,9 +1573,10 @@ public class JavaScriptLifter: Lifter {
         // See `reassign()` for more details about reassignment inlining.
         private var inlinedReassignments = VariableMap<Expression>()
 
-        init(analyzer: DefUseAnalyzer, version: ECMAScriptVersion, stripComments: Bool = false, includeLineNumbers: Bool = false, indent: Int = 4) {
+        init(analyzer: DefUseAnalyzer, version: ECMAScriptVersion, optimOptions: JavaScriptOptimOptions, stripComments: Bool = false, includeLineNumbers: Bool = false, indent: Int = 4) {
             self.writer = ScriptWriter(stripComments: stripComments, includeLineNumbers: includeLineNumbers, indent: indent)
             self.analyzer = analyzer
+            self.optimOptions = optimOptions
             self.varKeyword = version == .es6 ? "let" : "var"
             self.constKeyword = version == .es6 ? "const" : "var"
         }
@@ -1562,7 +1591,7 @@ public class JavaScriptLifter: Lifter {
                 // the output variable is declared up-front and so we lift to a variable assignment.
                 assert(V.type === Identifier)
                 emit("\(V) = \(expr);")
-            } else if allowInlining && shouldTryInlining(expr, producing: v) {
+            } else if self.optimOptions.contains(.allowInliningExpressions) && allowInlining && shouldTryInlining(expr, producing: v) {
                 expressions[v] = expr
                 // If this is an effectful expression, it must be the next expression to be evaluated. To ensure that, we
                 // keep a list of all "pending" effectful expressions, which must be executed in FIFO order.
@@ -1617,7 +1646,7 @@ public class JavaScriptLifter: Lifter {
         mutating func reassign(_ v: Variable, from expr: Expression) {
             assert(expr.type === AssignmentExpression)
             assert(analyzer.numAssignments(of: v) > 1)
-            guard analyzer.numAssignments(of: v) == 2 else {
+            guard self.optimOptions.isSuperset(of: [.allowInliningExpressions, .allowOptimizingReassign]) && analyzer.numAssignments(of: v) == 2 else {
                 // There are multiple (re-)assignments, so we cannot inline the assignment expression.
                 return emit("\(expr);")
             }

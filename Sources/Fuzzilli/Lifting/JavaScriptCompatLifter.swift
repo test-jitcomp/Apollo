@@ -62,10 +62,25 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
     })(globalThis || global);
     """
 
-    public override init(prefix: String = "", suffix: String = "", ecmaVersion: ECMAScriptVersion) {
-        super.init(
+    public convenience init(prefix: String = "", suffix: String = "", ecmaVersion: ECMAScriptVersion) {
+        self.init(
             prefix: JavaScriptCompatLifter.codePrefix + prefix,
             suffix: suffix + JavaScriptCompatLifter.codeSuffix,
+            optimOptions: .allowAllOptimizations.subtracting(.allowOptimizingReassign), // We conservatively disable allow inlining operations
+            ecmaVersion: ecmaVersion
+        )
+    }
+
+    private override init(
+        prefix: String = "",
+        suffix: String = "",
+        optimOptions: JavaScriptOptimOptions = .allowAllOptimizations,
+        ecmaVersion: ECMAScriptVersion
+    ) {
+        super.init(
+            prefix: prefix,
+            suffix: suffix,
+            optimOptions: optimOptions,
             ecmaVersion: ecmaVersion
         )
     }
