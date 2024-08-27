@@ -85,7 +85,9 @@ public class InsertChksumOpMutator: Mutator {
                 if isLoadChksumContainer(instr) {
                     // We replace all "LoadNamedVariable chksum" with an new array
                     let output = b.adoptAndDefine(for: instr.output)
-                    b.reassign(output, from: b.createArray(with: [b.loadInt(0)]))
+                    b.reassign(output, from: b.createArray(with: [
+                        b.loadInt(0), b.buildObjectLiteral{ _ in }
+                    ]))
                 } else {
                     b.adopt(instr)
                 }
@@ -134,7 +136,9 @@ public class InsertChksumOpMutator: Mutator {
                 } else {
                     // We replace it with an new array
                     let output = b.adoptAndDefine(for: instr.output)
-                    b.reassign(output, from: b.createArray(with: [b.loadInt(0)]))
+                    b.reassign(output, from: b.createArray(with: [
+                        b.loadInt(0), b.buildObjectLiteral{ _ in }
+                    ]))
                 }
             }
         }
