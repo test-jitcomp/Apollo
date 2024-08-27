@@ -19,6 +19,7 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
     public static let printFuncName = "__compat_out__";
     public static let chksumContainerName = "__compat_checksum__";
     public static let chksumIndexInContainer = 0;
+    public static let chksumCounterIndexInContainer = 1;
 
     public static let codePrefix = """
     (function(\(globalThisName)){
@@ -31,10 +32,21 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
     ) || (\(globalThisName))['print'];
 
     //
-    // Define a checksum for the Javascript program.
-    // The code have the flexibility to operate on it.
+    // Define a checksum for the Javascript program. The generated code
+    // has the flexibility to operate on it. In below cotainer (an array):
     //
-    const \(chksumContainerName) = [0xAB0110];
+    // * We put the chksum value at the 0th position.
+    // * For the 1st position, we put a map which serves as a chksum update
+    // counter. The counter associates the number of chksum updates with
+    // each subroutine. We design such a map as, the implicit type conventions
+    // (which often cause implicit subroutine calls for example toString(),
+    // toValue(), etc.), when executed too much (due to Fuzzilli-generated
+    // arbitratry code), may lead to quite unstable chksum updates.
+    // This further leads us to capturing a quantities of false-positive
+    // miscompilations. We design this dict to restrict the number
+    // of chksum updates for each subroutine.
+    //
+    const \(chksumContainerName) = [0xAB0110, {}];
 
     //
     // Wrap all generated code by a try-finally block to ensure

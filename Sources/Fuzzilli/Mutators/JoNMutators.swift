@@ -51,6 +51,22 @@ extension ProgramBuilder {
     }
 }
 
+extension Code {
+
+    /// Finds the subroutine definition (i.e., BeginAnySubroutine) for an instruction
+    public func findSubrtineDefinition(for instr: Instruction) -> Instruction {
+        var index = instr.index
+        while index >= 0 {
+            let curr = self[index]
+            if curr.isBlockStart && curr.op is BeginAnySubroutine {
+                return curr
+            }
+            index -= 1
+        }
+        fatalError("Cannot reach here")
+    }
+}
+
 /// A mutator which assists JoN mutation by inserting a checksum variable into a program.
 ///
 ///     prog
@@ -68,16 +84,30 @@ extension ProgramBuilder {
 /// The try-finally block ensures that the chksum are always output.
 class InsertChksumOpMutator: Mutator {
 
+    public static let maxNumberOfUpdatesPerSubrt: Int = 100
+
+    public enum Aggressiveness {
+        // Chksum update operations are inserted all over the program
+        case aggressive;
+
+        // Outside of subroutines, chksum update operations are inserted causally.
+        // Inside of subroutines, the number chksum updates are bounded to a limit.
+        case conservative;
+
+        // Chksum update operations are inserted only outside of any subroutine
+        case modest;
+    }
+
     // When enabled, the mutator inserts chksum operations randomly at a program's every point.
     // Otherwise, the mutator conservatively inserts the operations using some heuristics.
-    let aggressive: Bool
+    let aggressiveness: Aggressiveness
 
     // The probability to insert a chksum operation at a program point
     let probaInsertion: Double
 
-    public init(name: String? = nil, aggressive: Bool = true) {
-        self.aggressive = aggressive
-        self.probaInsertion = aggressive ? 0.2 : 0.33
+    public init(name: String? = nil, aggressiveness: Aggressiveness = .modest) {
+        self.aggressiveness = aggressiveness
+        self.probaInsertion = aggressiveness != .conservative ? 0.2 : 0.33
         super.init(name: name)
     }
 
@@ -115,12 +145,14 @@ class InsertChksumOpMutator: Mutator {
     }
 
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
-        return aggressive
-            ? self.aggresMutate(program, using: b, for: fuzzer)
-            : self.conserMutate(program, using: b, for: fuzzer)
+        switch aggressiveness {
+        case .aggressive: return aggressively(program, using: b, for: fuzzer)
+        case .modest: return modestly(program, using: b, for: fuzzer)
+        case .conservative: return conservatively(program, using: b, for: fuzzer)
+        }
     }
 
-    private func aggresMutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+    private func aggressively(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         var contextAnalyzer = ContextAnalyzer()
 
         let chksumContainer = loadChksumContainer(using: b)
@@ -128,7 +160,6 @@ class InsertChksumOpMutator: Mutator {
             for instr in program.code {
                 b.adopt(instr)
                 contextAnalyzer.analyze(instr)
-                // Insert some add/sub/mul/... operations over the checksum
                 if (
                     probability(probaInsertion) &&
                     // As long as we are in a JavaScript context.
@@ -142,7 +173,77 @@ class InsertChksumOpMutator: Mutator {
         return b.finalize()
     }
 
-    private func conserMutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+    private func modestly(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        var contextAnalyzer = ContextAnalyzer()
+
+        // We associate the chksum update count with each subroutine.
+        // ensuring that the updates for each one is bound to a limit.
+        var subrtKeyMap = [Int:String]()
+
+        let updChksum = b.buildPlainFunction(with: .parameters(.string)) { args in
+            let subrtKey = args[0]
+
+            // Load the container saving our chksum value and counter
+            let chksumContainer = loadChksumContainer(using: b)
+
+            // Check if we're called by a subroutine
+            b.buildIf(b.compare(subrtKey, with: b.loadString("global"), using: .equal)) {
+                // We're not. Directly update the checksum.
+                updateChksumValue(in: chksumContainer, using: b)
+                b.doReturn()
+            }
+
+            // Load the chksum updates counter map
+            let cntrIndex = Int64(JavaScriptCompatLifter.chksumCounterIndexInContainer)
+            let cntrMap = b.getElement(cntrIndex, of: chksumContainer)
+
+            let updateCount = b.getComputedProperty(subrtKey, of: cntrMap)
+
+            // Check if this subroutine has ever been accessed
+            b.buildIf(b.compare(updateCount, with: b.loadUndefined(), using: .equal)) {
+                // Never accessed, our update count is zero
+                b.reassign(b.loadInt(0), to: updateCount)
+            }
+
+            // Check if the chksum updates have reach the limit
+            b.buildIf(b.compare(
+                updateCount,
+                with: b.loadInt(Int64(Self.maxNumberOfUpdatesPerSubrt)),
+                using: .lessThan
+            )) {
+                // We're okay, let's update the chksum
+                updateChksumValue(in: chksumContainer, using: b)
+                b.setComputedProperty(subrtKey, of: cntrMap, to: b.binary(updateCount, b.loadInt(1), with: .Add))
+            }
+        }
+
+        b.adopting(from: program) {
+            for instr in program.code {
+                b.adopt(instr)
+                contextAnalyzer.analyze(instr)
+                if instr.op is BeginAnySubroutine {
+                    subrtKeyMap[instr.index] = "subrt\(subrtKeyMap.count)"
+                }
+                if (
+                    probability(probaInsertion) &&
+                    contextAnalyzer.context.contains(.javascript)
+                ) {
+                    let subrtKey: String
+                    if contextAnalyzer.context.contains(.subroutine) {
+                        let subrt = program.code.findSubrtineDefinition(for: instr)
+                        subrtKey = subrtKeyMap[subrt.index]!
+                    } else {
+                        subrtKey = "global"
+                    }
+                    b.callFunction(updChksum, withArgs: [b.loadString(subrtKey)])
+                }
+            }
+        }
+
+        return b.finalize()
+    }
+
+    private func conservatively(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         var contextAnalyzer = ContextAnalyzer()
 
         let chksumContainer = loadChksumContainer(using: b)
@@ -150,15 +251,9 @@ class InsertChksumOpMutator: Mutator {
             for instr in program.code {
                 b.adopt(instr)
                 contextAnalyzer.analyze(instr)
-                // Insert some add/sub/mul/... operations over the checksum
                 if (
                     probability(probaInsertion) &&
                     contextAnalyzer.context.contains(.javascript) &&
-
-                    // TODO: This is too conservatively and we may miss many JIT bugs
-                    // Perhaps analyze if the function has been used as arguments;
-                    // If yes, we don't insert; otherwise, let's insert some.
-
                     // We do not prefer subroutines as when the subroutine is used
                     // as like an argument of other subroutines, it may introduce
                     // unexpected behaviors. For example, the stack size is different
