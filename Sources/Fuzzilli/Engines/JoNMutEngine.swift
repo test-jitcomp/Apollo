@@ -23,7 +23,7 @@ public class JoNMutEngine: FuzzEngine {
     private let numConsecutiveMutations: Int
 
     // The mutator which helps add some checksum operations before applying JoN mutations
-    private let chksumOpInserter = InsertChksumOpMutator(aggressiveness: .modest)
+    private let chksumOpInserter = InsChksumOpsModestMutator()
 
     // The mutator, working as a backup, helps add a neutral loop into the program
     private let neuLoopInserter = PlainInsNeuLoopMutator()
