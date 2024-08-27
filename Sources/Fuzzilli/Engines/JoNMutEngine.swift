@@ -56,11 +56,11 @@ public class JoNMutEngine: FuzzEngine {
         // TODO: Are there any random behaviors in seed generation? Perhaps removing all randomXxx builtins?
         let rawSeed = randomProgramForJoNMutating()
 
-        guard let seed = prepareForJoNMutating(rawSeed) else {
+        guard let seed = preprocess(rawSeed) else {
             fatalError("Failed to inserting checksum variable into the program")
         }
 
-        // Execute the seed program
+        // Execute the seed program and obtain its input as our referee
         let seedExec = execute0(seed, withCaching: true)
         if seedExec.outcome != .succeeded {
             return // We accidentally picked an interesting program
@@ -82,7 +82,7 @@ public class JoNMutEngine: FuzzEngine {
                     // Success!
                     result.contributors.formUnion(seed.contributors)
                     mutator.addedInstructions(result.size - seed.size)
-                    mutantOrNil = result
+                    mutantOrNil = postprocess(result)
                     break
                 } else {
                     // Try a different mutator.
@@ -99,6 +99,7 @@ public class JoNMutEngine: FuzzEngine {
 
             assert(mutant !== seed)
 
+            // Execute the mutant and check its output aginst our referee
             let mutantExec = execute0(mutant, withCaching: true)
 
             // The mutant program exit succeededly while with different results
@@ -116,14 +117,18 @@ public class JoNMutEngine: FuzzEngine {
     }
 
     /// Pre-processing of programs to facilitate JoN mutations on them.
-    ///
-    /// Specifically, to prevent that the program does not print, we manually
-    /// insert a checksum variable into it and print its value in the end.
-    private func prepareForJoNMutating(_ program: Program) -> Program? {
+    private func preprocess(_ program: Program) -> Program? {
         if program.contributors.contains(chksumOpInserter) {
             return program // We have already added a checksum; avoid redoing.
         }
-        return chksumOpInserter.mutate(program, for: fuzzer)
+        return chksumOpInserter.mutate(
+            chksumOpInserter.preprocess(program, for: fuzzer), for: fuzzer
+        )
+    }
+
+    /// Post-processing of programs to facilitate JoN mutations on them.
+    private func postprocess(_ program: Program) -> Program {
+        return chksumOpInserter.postprocess(program, for: fuzzer)
     }
 
     /// Pick a program (without JoN mutations) for JoN mutation
