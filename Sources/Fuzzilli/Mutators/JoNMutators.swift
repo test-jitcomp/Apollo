@@ -101,7 +101,7 @@ public class JoNMutator: BaseSubroutineMutator {
         let context = contextAnalyzer.aggregrateContext
         return (
             // We must be in a normal .javascript context
-            context.contains(.javascript) &&
+            contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
             (canBeInLoop || !context.contains(.loop)) &&
             // We don't insert code in a code string as the inserted code

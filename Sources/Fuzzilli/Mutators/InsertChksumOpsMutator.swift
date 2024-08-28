@@ -195,7 +195,7 @@ public class InsChksumOpsAggressiveMutator: InsertChksumOpMutator {
         guard (
             probability(probaInsertion) &&
             // As long as we are in a JavaScript context, we can insert chksum ops
-            contextAnalyzer.aggregrateContext.contains(.javascript)
+            contextAnalyzer.context.contains(.javascript)
         ) else {
             return
         }
@@ -207,10 +207,10 @@ public class InsChksumOpsAggressiveMutator: InsertChksumOpMutator {
 public class InsChksumOpsConservativeMutator: InsertChksumOpMutator {
 
     override func insertChksumOps(in c: Variable, after i: Instruction, using b: ProgramBuilder) {
-        let context = contextAnalyzer.aggregrateContext
         guard (
             probability(probaInsertion) &&
-            context.contains(.javascript) &&
+            // As long as we are in a JavaScript context, we can insert chksum ops
+            contextAnalyzer.context.contains(.javascript) &&
             // We do not prefer subroutines as when the subroutine is used
             // as like an argument of other subroutines, it may introduce
             // unexpected behaviors. For example, the stack size is different
@@ -218,7 +218,7 @@ public class InsChksumOpsConservativeMutator: InsertChksumOpMutator {
             // number of chksum updates at runtime, causing the final chksum
             // value to be different in different engines; this is bad
             // for differential testing, especially for miscompilation bugs.
-            !context.contains(.subroutine)
+            !contextAnalyzer.aggregrateContext.contains(.subroutine)
         ) else {
             return
         }
@@ -232,46 +232,114 @@ public class InsChksumOpsConservativeMutator: InsertChksumOpMutator {
 public class InsChksumOpsModestMutator: InsertChksumOpMutator {
 
     // The program being inserting checksum update operations
-    var program: Program = Program()
+    var program = Program()
 
     // We associate the chksum update count with each subroutine.
     // ensuring that the updates for each one is bound to a limit.
     var subrtKeyMap = [Int:String]()
 
     // The function to update checksum update operations
-    var chksumUpdate: Variable = Variable(number: 0)
+    var chksumUpdate = Variable(number: 0)
+
+    // We use the def-use relations to distinguish different subroutines
+    var defUseAnalyzer = DefUseAnalyzer(for: Program())
 
     override func beginInsertion(in c: Variable, for p: Program, using b: ProgramBuilder) {
         program = p
         subrtKeyMap = [Int:String]()
+        defUseAnalyzer = DefUseAnalyzer(for: p)
+        defUseAnalyzer.analyze()
         chksumUpdate = buildUpdateChksumFunction(for: c, using: b)
     }
 
     override func insertChksumOps(in c: Variable, after i: Instruction, using b: ProgramBuilder) {
         if i.op is BeginAnySubroutine && subrtKeyMap[i.index] == nil {
+            // Each subroutine is given a unique key for requesting chksum updates
             subrtKeyMap[i.index] = "s\(subrtKeyMap.count)"
         }
 
-        let context = contextAnalyzer.aggregrateContext
         guard (
             probability(probaInsertion) &&
-            context.contains(.javascript)
+            contextAnalyzer.context.contains(.javascript)
         ) else {
             return
         }
 
-        let subrtKey: String
-        if context.contains(.subroutine) {
-            let subrt = program.code.findSubrtineDefinition(for: i)
-            subrtKey = subrtKeyMap[subrt.index]!
-        } else {
+        var subrtKey: String? = nil
+        if !contextAnalyzer.aggregrateContext.contains(.subroutine) {
+            // We directly apply the updates as we are not in a subroutine
             subrtKey = "global"
+        } else {
+            // We apply different strategies for different subroutines
+            let subrt = program.code.findSubrtineDefinition(for: i)
+            switch subrt.op {
+            // Plain functions: we check their uses and stay away from them if they are used as arguments
+            case is BeginPlainFunction, is BeginArrowFunction, is BeginGeneratorFunction:
+                subrtKey = getSubrtKeyOf(func: subrt)
+
+            // Async functions: we stay away (the orders of their execution are underdetermined)
+            case is BeginAsyncFunction, is BeginAsyncArrowFunction, is BeginAsyncGeneratorFunction:
+                subrtKey = nil
+
+            // Constructor functions: we accept it
+            case is BeginConstructor:
+                subrtKey = getSubrtKeyOf(func: subrt)
+
+            // Object methods: we stay away from builtin methods
+            case let op as BeginObjectLiteralMethod:
+                subrtKey = getSubrtKeyOf(method: op.methodName, withDifinition: subrt)
+
+            // Object getter/setter methods: we accept them
+            case is BeginObjectLiteralGetter, is BeginObjectLiteralSetter:
+                subrtKey = subrtKeyMap[subrt.index]!
+
+            // Object computed methods: we stay away (it's difficult to determine the [Symbol] of the method)
+            case is BeginObjectLiteralComputedMethod:
+                subrtKey = nil
+
+            // Class constructor methods: we accept it
+            case is BeginClassConstructor:
+                subrtKey = subrtKeyMap[subrt.index]!
+
+            // Class methods: we stay away from builtin methods
+            case let op as BeginClassInstanceMethod:
+                subrtKey = getSubrtKeyOf(method: op.methodName, withDifinition: subrt)
+
+            // Class private methods: we stay away from builtin methods
+            case let op as BeginClassPrivateInstanceMethod:
+                subrtKey = getSubrtKeyOf(method: op.methodName, withDifinition: subrt)
+
+            // Class getter/setter methods: we accept them
+            case is BeginClassInstanceGetter, is BeginClassInstanceSetter:
+                subrtKey = subrtKeyMap[subrt.index]!
+
+            // Class static initializer: we accept them
+            case is BeginClassStaticInitializer:
+                subrtKey = subrtKeyMap[subrt.index]!
+
+            // Class static methods: we stay away from builtin methods
+            case let op as BeginClassStaticMethod:
+                subrtKey = getSubrtKeyOf(method: op.methodName, withDifinition: subrt)
+
+            // Class static private methods: we stay away from builtin methods
+            case let op as BeginClassPrivateStaticMethod:
+                subrtKey = getSubrtKeyOf(method: op.methodName, withDifinition: subrt)
+
+            // Class static getter/setter methods: we accept them
+            case is BeginClassStaticGetter, is BeginClassStaticSetter:
+                subrtKey = subrtKeyMap[subrt.index]!
+
+            default:
+                subrtKey = nil
+            }
         }
 
-        b.callFunction(chksumUpdate, withArgs: [
-            b.loadString(subrtKey),
-            b.loadInt(Int64.random(in: 1...25536))
-        ])
+        if let subrtKey = subrtKey {
+            b.callFunction(chksumUpdate, withArgs: [
+                b.loadString(subrtKey),
+                b.loadInt(Int64.random(in: 1...25536))
+            ])
+        }
     }
 
     private func buildUpdateChksumFunction(for container: Variable, using b: ProgramBuilder) -> Variable {
@@ -309,5 +377,32 @@ public class InsChksumOpsModestMutator: InsertChksumOpMutator {
                 b.setComputedProperty(subrtKey, of: cntrMap, to: b.binary(updateCount, b.loadInt(1), with: .Add))
             }
         }
+    }
+
+    private func getSubrtKeyOf(method: String, withDifinition subrt: Instruction) -> String? {
+        if ["toString", "valueOf"].contains(method) {
+            return nil
+        } else {
+            return subrtKeyMap[subrt.index]!
+        }
+    }
+
+    private func getSubrtKeyOf(func subrt: Instruction) -> String? {
+        let s = subrt.output
+        // We expect s not to be used as a higher-order function as in such
+        // cases the Fuzzilli-generated code typically cause stack overflow,
+        // making our chksums (even though we have set a limit) unstable.
+        for use in defUseAnalyzer.uses(of: s) {
+            guard use.isCall && use.hasInputs && use.inputs[0] == s else {
+                return nil // The subrt s is likely to be used higherly-order
+            }
+            // The subrt s is the callee, let's check if it also one of the arguments
+            for i in 1..<use.inputs.count {
+                if use.inputs[i] == s {
+                    return nil // The subrt s is passed as a higher-order argument
+                }
+            }
+        }
+        return subrtKeyMap[subrt.index]!
     }
 }
