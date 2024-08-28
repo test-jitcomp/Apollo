@@ -70,15 +70,15 @@ public class PlainInsNeuLoopMutator: JITMutator {
 
     override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         b.adopt(i)
-        b.append(b.randomNeutralLoop(forMutating: progUnderMut!))
+        b.append(b.randomNeutralLoop(forMutating: mutatingProgram))
     }
 }
 
 /// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
     let canBeInLoop: Bool
-    var progUnderMut: Program? = nil
 
+    var mutatingProgram: Program = Program()
     var contextAnalyzer = ContextAnalyzer()
     var deadCodeAnalyzer = DeadCodeAnalyzer()
 
@@ -90,7 +90,7 @@ public class JoNMutator: BaseSubroutineMutator {
     }
 
     override func beginMutation(of p: Program, using b: ProgramBuilder) {
-        progUnderMut = p
+        mutatingProgram = p
         contextAnalyzer = ContextAnalyzer()
         deadCodeAnalyzer = DeadCodeAnalyzer()
     }
@@ -117,7 +117,6 @@ public class JoNMutator: BaseSubroutineMutator {
 
     override func endMutation(of p: Program, using b: ProgramBuilder) {
         // TODO: Use a FixupMutator to fix up the program like removing unneeded try-catches.
-        progUnderMut = nil
     }
 
     func adoptSubroutineByDefault(_ subrt: [Instruction], _ b: ProgramBuilder) {
@@ -166,10 +165,6 @@ public class InsNeuLoopForJITMutator: JoNMutator {
     }
     
     override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
-        guard let progUnderMut = progUnderMut else {
-            adoptSubroutineByDefault(subrt, b)
-            return // No available program points
-        }
         // We can only insert our loop before instructions that are mutable
         let choices = (0..<subrt.count-1).filter({ mutable[$0] })
         guard choices.count >= 1 else {
@@ -180,7 +175,7 @@ public class InsNeuLoopForJITMutator: JoNMutator {
         for (index, instr) in subrt.enumerated() {
             b.adopt(instr)
             if index == insertAt {
-                b.append(b.randomNeutralLoop(forMutating: progUnderMut))
+                b.append(b.randomNeutralLoop(forMutating: mutatingProgram))
             }
         }
     }
@@ -224,7 +219,7 @@ public class WrapInstrForJITMutator: JoNMutator {
     }
 
     override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
-        guard subrt.count > 2, let progUnderMut = progUnderMut else {
+        guard subrt.count > 2 else {
             adoptSubroutineByDefault(subrt, b)
             return // No instructions to wrap
         }
@@ -259,7 +254,7 @@ public class WrapInstrForJITMutator: JoNMutator {
                 b.buildTryCatchFinally(tryBody: {
                     b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
                         // Append a brand new program so that it has no connections to us
-                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize, forMutating: progUnderMut))
+                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize, forMutating: mutatingProgram))
                         // Check if instr has ben executed in prior iterations and skip
                         // its execution if already; otherwise, execute it and set the flag
                         let flag = b.getElement(0, of: container)
@@ -362,11 +357,6 @@ public class CallSubrtForJITMutator: JoNMutator {
     }
 
     override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
-        guard let progUnderMut = progUnderMut else {
-            adoptSubroutineByDefault(subrt, b)
-            return
-        }
-
         // Create a flag; again we insert it into a container
         let flagContainer = b.createArray(with: [b.loadBool(false)])
 
@@ -400,7 +390,7 @@ public class CallSubrtForJITMutator: JoNMutator {
 
         // Find the very first call to the subroutine; we'll reuse it.
         var subrtCall: Instruction? = nil
-        for instr in progUnderMut.code {
+        for instr in mutatingProgram.code {
             if (
                 instr.isCall &&
                 // CallSuperConstructor does not require a target and
