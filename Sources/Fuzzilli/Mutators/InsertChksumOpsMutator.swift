@@ -195,7 +195,7 @@ public class InsChksumOpsAggressiveMutator: InsertChksumOpMutator {
         guard (
             probability(probaInsertion) &&
             // As long as we are in a JavaScript context, we can insert chksum ops
-            contextAnalyzer.context.contains(.javascript)
+            contextAnalyzer.aggregrateContext.contains(.javascript)
         ) else {
             return
         }
@@ -207,9 +207,10 @@ public class InsChksumOpsAggressiveMutator: InsertChksumOpMutator {
 public class InsChksumOpsConservativeMutator: InsertChksumOpMutator {
 
     override func insertChksumOps(in c: Variable, after i: Instruction, using b: ProgramBuilder) {
+        let context = contextAnalyzer.aggregrateContext
         guard (
             probability(probaInsertion) &&
-            contextAnalyzer.context.contains(.javascript) &&
+            context.contains(.javascript) &&
             // We do not prefer subroutines as when the subroutine is used
             // as like an argument of other subroutines, it may introduce
             // unexpected behaviors. For example, the stack size is different
@@ -217,7 +218,7 @@ public class InsChksumOpsConservativeMutator: InsertChksumOpMutator {
             // number of chksum updates at runtime, causing the final chksum
             // value to be different in different engines; this is bad
             // for differential testing, especially for miscompilation bugs.
-            !contextAnalyzer.context.contains(.subroutine)
+            !context.contains(.subroutine)
         ) else {
             return
         }
@@ -250,15 +251,17 @@ public class InsChksumOpsModestMutator: InsertChksumOpMutator {
         if i.op is BeginAnySubroutine && subrtKeyMap[i.index] == nil {
             subrtKeyMap[i.index] = "s\(subrtKeyMap.count)"
         }
+
+        let context = contextAnalyzer.aggregrateContext
         guard (
             probability(probaInsertion) &&
-            contextAnalyzer.context.contains(.javascript)
+            context.contains(.javascript)
         ) else {
             return
         }
 
         let subrtKey: String
-        if contextAnalyzer.context.contains(.subroutine) {
+        if context.contains(.subroutine) {
             let subrt = program.code.findSubrtineDefinition(for: i)
             subrtKey = subrtKeyMap[subrt.index]!
         } else {

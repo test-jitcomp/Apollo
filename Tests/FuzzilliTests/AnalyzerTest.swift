@@ -208,7 +208,7 @@ class AnalyzerTests: XCTestCase {
                 XCTAssertEqual(b.context, [.javascript, .loop, .codeString])
                 let _ = b.buildCodeString() {
                     b.loadString("hello world")
-                    XCTAssertEqual(b.context, [.javascript, .loop, .codeString])
+                    XCTAssertEqual(b.context, [.javascript, .codeString])
                 }
             }
         }

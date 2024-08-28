@@ -59,11 +59,12 @@ public class PlainInsNeuLoopMutator: JITMutator {
     }
 
     override func canMutateInstruction(_ i: Instruction) -> Bool {
+        let context = contextAnalyzer.aggregrateContext
         return (
             // We are a plain instruction mutator, we don't work in subroutines
-            !contextAnalyzer.context.contains(.subroutine) &&
+            !context.contains(.subroutine) &&
             // We stay away from code strings (see JoNMutators)
-            !contextAnalyzer.context.contains(.codeString)
+            !context.contains(.codeString)
         )
     }
 
@@ -97,15 +98,16 @@ public class JoNMutator: BaseSubroutineMutator {
     override func canMutate(_ s: Instruction?, _ i: Instruction) -> Bool {
         contextAnalyzer.analyze(i)
         deadCodeAnalyzer.analyze(i)
+        let context = contextAnalyzer.aggregrateContext
         return (
             // We must be in a normal .javascript context
-            contextAnalyzer.context.contains(.javascript) &&
+            context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
-            (canBeInLoop || !contextAnalyzer.context.contains(.loop)) &&
+            (canBeInLoop || !context.contains(.loop)) &&
             // We don't insert code in a code string as the inserted code
             // may be executed by an eval in aother location. Once the
             // inserted code is syntax-invalid, we canont capture it early.
-            !contextAnalyzer.context.contains(.codeString) &&
+            !context.contains(.codeString) &&
             // We cannot be any dead code
             !deadCodeAnalyzer.currentlyInDeadCode &&
             // We then delegate to our children for further checks
@@ -156,7 +158,11 @@ public class InsNeuLoopForJITMutator: JoNMutator {
     }
 
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
-        return s != nil && !contextAnalyzer.context.contains(.objectLiteral) // We can mutate any subroutines
+        return (
+            s != nil && // We can mutate any subroutines
+            !contextAnalyzer.context.contains(.objectLiteral) &&
+            !contextAnalyzer.context.contains(.classDefinition)
+        )
     }
     
     override func mutate(_ subrt: [Instruction], _ mutable: [Bool], _ b: ProgramBuilder) {
@@ -212,7 +218,8 @@ public class WrapInstrForJITMutator: JoNMutator {
     override func canMutateSubroutine(_ s: Instruction?, _ i: Instruction) -> Bool {
         return (
             s != nil &&  // We can mutate any subroutines
-            !contextAnalyzer.context.contains(.objectLiteral)
+            !contextAnalyzer.context.contains(.objectLiteral) &&
+            !contextAnalyzer.context.contains(.classDefinition)
         )
     }
 
@@ -349,7 +356,8 @@ public class CallSubrtForJITMutator: JoNMutator {
                 s!.op is BeginPlainFunction ||
                 s!.op is BeginArrowFunction
             ) && // We currently only support these types
-            !contextAnalyzer.context.contains(.objectLiteral)
+            !contextAnalyzer.context.contains(.objectLiteral) &&
+            !contextAnalyzer.context.contains(.classDefinition)
         )
     }
 
@@ -524,7 +532,7 @@ public class CallSubrtForDeOptMutator: JoNMutator {
                     instr.op is CallFunction ||
                     instr.op is CallFunctionWithSpread
                 ) && // We currently only support CallFunction
-                contextAnalyzer.context.contains(.loop) // We focus on calls inside loops
+                contextAnalyzer.aggregrateContext.contains(.loop) // We focus on calls inside loops
             ) {
                 let callee = instr.inputs[0]
                 // Check if it is one of our declared subroutine

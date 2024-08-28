@@ -147,6 +147,14 @@ struct ContextAnalyzer: Analyzer {
         return contextStack.top
     }
 
+    var aggregrateContext: Context {
+        var ac = Context.empty
+        for c in contextStack.elementsStartingAtTop() {
+            ac.formUnion(c)
+        }
+        return ac
+    }
+
     mutating func analyze(_ instr: Instruction) {
         if instr.isBlockEnd {
             contextStack.pop()
