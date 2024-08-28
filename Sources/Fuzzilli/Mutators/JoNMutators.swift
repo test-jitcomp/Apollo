@@ -102,10 +102,9 @@ public class JoNMutator: BaseSubroutineMutator {
             contextAnalyzer.context.contains(.javascript) &&
             // We cannot within a loop; otherwise, we might never stop...
             (canBeInLoop || !contextAnalyzer.context.contains(.loop)) &&
-            // We don't insert code in a code string as the inserted may generate
-            // template strings, which the original JavaScriptLifter fails to work
-            // with (there's a bug inside it). Even though we fixed it, we conservatively
-            // stay away from code strings as there might be further unexpected issues.
+            // We don't insert code in a code string as the inserted code
+            // may be executed by an eval in aother location. Once the
+            // inserted code is syntax-invalid, we canont capture it early.
             !contextAnalyzer.context.contains(.codeString) &&
             // We cannot be any dead code
             !deadCodeAnalyzer.currentlyInDeadCode &&
@@ -235,6 +234,9 @@ public class WrapInstrForJITMutator: JoNMutator {
             !(subrt[$0].op is LoadNamedVariable) && // We prefer not to wrapping an instrcution with a predefined name
             !(subrt[$0].op is StoreNamedVariable) && // We prefer not to wrapping an instrcution with a predefined name
             !(subrt[$0].op is DefineNamedVariable) && // We prefer not to wrapping an instrcution with a predefined name
+            !(subrt[$0].op is ConfigureElement) && // We prefer not to wrapping property setting instructions; they ain't atomc
+            !(subrt[$0].op is ConfigureProperty) && // We prefer not to wrapping property setting instructions; they ain't atomc
+            !(subrt[$0].op is ConfigureComputedProperty) && // We prefer not to wrapping property setting instructions; they ain't atomc
             subrt[$0].numOutputs <= 1 // We avoid wrapping instructions with multiple outputs
         })
         guard choices.count > 1 else {
