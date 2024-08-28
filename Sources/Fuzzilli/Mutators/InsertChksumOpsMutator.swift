@@ -49,7 +49,7 @@ extension Code {
 /// The try-finally block (embeded in our compat lifter) ensures that the chksum are always output.
 public class InsertChksumOpMutator: Mutator {
 
-    public static let maxNumberOfUpdatesPerSubrt: Int = 100
+    public static let maxNumberOfUpdatesPerSubrt: Int = 50
 
     // The probability of inserting a chksum update operation at a program point
     let probaInsertion: Double
