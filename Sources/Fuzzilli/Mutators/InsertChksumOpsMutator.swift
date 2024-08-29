@@ -101,6 +101,7 @@ public class InsertChksumOpMutator: Mutator {
         contextAnalyzer = ContextAnalyzer()
 
         let chksumCont = loadChksumContainer(using: builder)
+        builder.hide(chksumCont)  // Hide it to avoid being used by our builder
         beginInsertion(in: chksumCont, for: program, using: builder)
         builder.adopting(from: program) {
             for instr in program.code {
@@ -250,6 +251,7 @@ public class InsChksumOpsModestMutator: InsertChksumOpMutator {
         defUseAnalyzer = DefUseAnalyzer(for: p)
         defUseAnalyzer.analyze()
         chksumUpdate = buildUpdateChksumFunction(for: c, using: b)
+        b.hide(chksumUpdate) // Hide it to avoid being used
     }
 
     override func insertChksumOps(in c: Variable, after i: Instruction, using b: ProgramBuilder) {
