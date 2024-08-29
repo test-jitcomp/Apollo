@@ -312,7 +312,22 @@ if swarmTesting {
     logger.info("Weight | CodeGenerator")
 }
 
-let disabledGenerators = Set(profile.disabledCodeGenerators)
+var disabledGenerators = Set(profile.disabledCodeGenerators)
+if engineName == "jonmut" {
+    // JoNMutEngines requests for stable chksum outputs. So let's
+    // remove as many generators as possible as long as they are
+    // likely to generate unstable code like unrecognized regexes,
+    // setting to __proto__s, etc.
+    disabledGenerators.formUnion([
+        "RegExpGenerator",
+        "PrototypeAccessGenerator",
+        "PrototypeOverwriteGenerator",
+        "CallbackPropertyGenerator",
+        "NamedVariableLoadGenerator",
+        "NamedVariableStoreGenerator",
+        "NamedVariableDefinitionGenerator"
+    ])
+}
 let additionalCodeGenerators = profile.additionalCodeGenerators
 let regularCodeGenerators: [(CodeGenerator, Int)] = CodeGenerators.map {
     guard let weight = codeGeneratorWeights[$0.name] else {
