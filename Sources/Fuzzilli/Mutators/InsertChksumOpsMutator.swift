@@ -297,9 +297,9 @@ public class InsChksumOpsModestMutator: InsertChksumOpMutator {
             case is BeginObjectLiteralComputedMethod:
                 subrtKey = nil
 
-            // Class constructor methods: we accept it
+            // Class constructor methods: we stay away as Fuzzilli typically generates "class C extends f {}; new C(f); ..."
             case is BeginClassConstructor:
-                subrtKey = subrtKeyMap[subrt.index]!
+                subrtKey = nil
 
             // Class methods: we stay away from builtin methods
             case let op as BeginClassInstanceMethod:
