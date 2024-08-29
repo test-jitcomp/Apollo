@@ -239,6 +239,14 @@ public class WrapInstrForJITMutator: JoNMutator {
             !(subrt[$0].op is ConfigureElement) && // We prefer not to wrapping property setting instructions; they ain't atomc
             !(subrt[$0].op is ConfigureProperty) && // We prefer not to wrapping property setting instructions; they ain't atomc
             !(subrt[$0].op is ConfigureComputedProperty) && // We prefer not to wrapping property setting instructions; they ain't atomc
+            !(subrt[$0].op is GetElement) && // We prefer not to wrapping element getter; they ain't aways atomc
+            !(subrt[$0].op is SetElement) && // We prefer not to wrapping element setter; they ain't aways atomc
+            !(subrt[$0].op is GetProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
+            !(subrt[$0].op is SetProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
+            !(subrt[$0].op is GetPrivateProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
+            !(subrt[$0].op is SetPrivateProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
+            !(subrt[$0].op is GetSuperProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
+            !(subrt[$0].op is SetSuperProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
             subrt[$0].numOutputs <= 1 // We avoid wrapping instructions with multiple outputs
         })
         guard choices.count > 1 else {
