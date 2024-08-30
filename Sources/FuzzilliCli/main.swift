@@ -466,10 +466,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
             probJITMutation: 0.40
         )
     case "jonmut":
-        engine = JoNMutEngine(
-            numConsecutiveMutations: consecutiveMutations,
-            probGenNew: 0.25
-        )
+        engine = JoNMutEngine(numConsecutiveMutations: consecutiveMutations)
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
     }

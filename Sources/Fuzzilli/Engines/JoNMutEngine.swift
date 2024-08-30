@@ -28,7 +28,7 @@ public class JoNMutEngine: FuzzEngine {
     // The mutator, working as a backup, helps add a neutral loop into the program
     private let neuLoopInserter = PlainInsNeuLoopMutator()
 
-    public init(numConsecutiveMutations: Int, probGenNew: Double) {
+    public init(numConsecutiveMutations: Int) {
         self.numConsecutiveMutations = numConsecutiveMutations
 
         super.init(name: "JoNMutEngine")
@@ -38,7 +38,7 @@ public class JoNMutEngine: FuzzEngine {
     ///
     /// High-level fuzzing algorithm:
     ///
-    ///     seed = pickSampleFromCorpus(woJIT)
+    ///     seed = pickSampleFromCorpus(woJoN)
     ///     seed_out = execute(seed)
     ///     repeat N times:
     ///         mutant = jon-mutate(seed)
