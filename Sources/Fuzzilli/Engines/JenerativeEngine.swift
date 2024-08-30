@@ -71,7 +71,7 @@ let JProgramTemplates: [ProgramTemplate] = [
         b.buildValues(5)
         var subrts = [Variable]()
         for i in 1...3 {
-            let j = Int.random(in: 1...subrts.count)
+            let j = subrts.isEmpty ? 0 : Int.random(in: 1...subrts.count)
             subrts.append(withEqualProbability({
                 b.buildPlainFunction(with: .parameters(n: i)) { _ in
                     b.build(n: 10)
