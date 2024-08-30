@@ -30,7 +30,7 @@ Options:
     --profile=name               : Select one of several preconfigured profiles.
                                    Available profiles: \(profiles.keys).
     --jobs=n                     : Total number of fuzzing jobs. This will start a main instance and n-1 worker instances.
-    --engine=name                : The fuzzing engine to use. Available engines: "jitmut" (default), "jonmut", "mutation", "hybrid", "multi".
+    --engine=name                : The fuzzing engine to use. Available engines: "jitmut" (default), "jonmut", "mutation", "hybrid", "multi", "hybrjdon".
                                    Only the mutation engine should be regarded stable at this point.
     --corpus=name                : The corpus scheduler to use. Available schedulers: "basic" (default), "markov"
     --logLevel=level             : The log level to use. Valid values: "verbose", "info", "warning", "error", "fatal" (default: "info").
@@ -156,7 +156,7 @@ let swarmTesting = args.has("--swarmTesting")
 let argumentRandomization = args.has("--argumentRandomization")
 let additionalArguments = args["--additionalArguments"] ?? ""
 let tag = args["--tag"]
-let compatLifting = engineName == "jonmut" || args.has("--compatLifting")
+var compatLifting = args.has("--compatLifting")
 
 guard numJobs >= 1 else {
     configError("Must have at least 1 job")
@@ -177,10 +177,14 @@ guard let logLevel = logLevelByName[logLevelName] else {
     configError("Invalid log level \(logLevelName)")
 }
 
-let validEngines = ["mutation", "jitmut", "jonmut", "hybrid", "multi"]
+let validEngines = ["mutation", "jitmut", "jonmut", "hybrid", "multi", "hybrjdon"]
 guard validEngines.contains(engineName) else {
     configError("--engine must be one of \(validEngines)")
 }
+
+let jonmEngines = ["jonmut", "hybrjdon"]
+let isJonmSeriesEngine = jonmEngines.contains(engineName)
+compatLifting = isJonmSeriesEngine || compatLifting
 
 let validCorpora = ["basic", "markov"]
 guard validCorpora.contains(corpusName) else {
@@ -313,8 +317,8 @@ if swarmTesting {
 }
 
 var disabledGenerators = Set(profile.disabledCodeGenerators)
-if engineName == "jonmut" {
-    // JoNMutEngines requests for stable chksum outputs. So let's
+if isJonmSeriesEngine {
+    // Both engines requests for stable chksum outputs. So let's
     // remove as many generators as possible as long as they are
     // likely to generate unstable code like unrecognized regexes,
     // setting to __proto__s, etc.
@@ -437,7 +441,7 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         (CallSubrtForJITMutator(),          2),
         (CallSubrtForDeOptMutator(),        1),
     ])
-    if ["jonmut"].contains(engineName) {
+    if isJonmSeriesEngine {
         logger.info("Enabled JoN mutators: \(jonMutators.map { $0.name })")
     }
 
@@ -468,6 +472,14 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         )
     case "jonmut":
         engine = JoNMutEngine(numConsecutiveMutations: consecutiveMutations)
+    case "hybrjdon":
+        engine = HybrjdonEngine(
+            numConsecutiveMutations: consecutiveMutations,
+            numConsecutiveJenerations: consecutiveMutations,
+            weightMutation: 2,
+            weightJeneration: 2,
+            weightJoNMutation: 6
+        )
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
     }
