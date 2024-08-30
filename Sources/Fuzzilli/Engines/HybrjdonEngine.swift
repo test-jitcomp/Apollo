@@ -30,9 +30,9 @@ public class HybrjdonEngine: FuzzEngine {
     public init(
         numConsecutiveMutations: Int,
         numConsecutiveJenerations: Int,
-        weightMutation: Int = 6,
+        weightMutation: Int = 2,
         weightJeneration: Int = 2,
-        weightJoNMutation: Int = 2
+        weightJoNMutation: Int = 6
     ) {
         self.mutEngine = MutationEngine(numConsecutiveMutations: numConsecutiveMutations)
         self.jenEngine = JenerativeEngine(numConsecutiveJenerations: numConsecutiveJenerations)
