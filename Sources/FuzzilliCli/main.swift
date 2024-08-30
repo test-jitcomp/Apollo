@@ -319,6 +319,7 @@ if engineName == "jonmut" {
     // likely to generate unstable code like unrecognized regexes,
     // setting to __proto__s, etc.
     disabledGenerators.formUnion([
+        "BuiltinGenerator",
         "RegExpGenerator",
         "PrototypeAccessGenerator",
         "PrototypeOverwriteGenerator",
