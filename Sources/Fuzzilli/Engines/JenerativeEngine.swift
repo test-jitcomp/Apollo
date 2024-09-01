@@ -26,18 +26,18 @@ let JProgramTemplates: [ProgramTemplate] = [
         for i in 1...3 {
             withEqualProbability({
                 b.buildPlainFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildArrowFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildConstructor(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             })
-            b.build(n: 5)
+            b.build(n: 5, by: .generating)
         }
     },
 
@@ -48,15 +48,15 @@ let JProgramTemplates: [ProgramTemplate] = [
             let j = subrts.isEmpty ? 0 : Int.random(in: 1...subrts.count)
             subrts.append(withEqualProbability({
                 b.buildPlainFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildArrowFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildConstructor(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }))
             b.build(n: 2, by: .generating)
@@ -74,15 +74,15 @@ let JProgramTemplates: [ProgramTemplate] = [
             let j = subrts.isEmpty ? 0 : Int.random(in: 1...subrts.count)
             subrts.append(withEqualProbability({
                 b.buildPlainFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildArrowFunction(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }, {
                 b.buildConstructor(with: .parameters(n: i)) { _ in
-                    b.build(n: 10)
+                    b.build(n: 10, by: .generating)
                 }
             }))
             b.build(n: 2, by: .generating)
