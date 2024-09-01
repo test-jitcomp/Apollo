@@ -318,19 +318,42 @@ if swarmTesting {
 
 var disabledGenerators = Set(profile.disabledCodeGenerators)
 if isJonmSeriesEngine {
-    // Both engines requests for stable chksum outputs. So let's
+    // All JoNM engines requests for stable chksum outputs. So let's
     // remove as many generators as possible as long as they are
     // likely to generate unstable code like unrecognized regexes,
-    // setting to __proto__s, etc.
+    // setting to __proto__s, all kinds of builtins, etc.
     disabledGenerators.formUnion([
-        "BuiltinGenerator",
+        // We disallow regexes as not all regex flags are valid through all engines
         "RegExpGenerator",
-        "PrototypeAccessGenerator",
-        "PrototypeOverwriteGenerator",
-        "CallbackPropertyGenerator",
+        // We disallow named variables as our generated code may affect their visibility
         "NamedVariableLoadGenerator",
         "NamedVariableStoreGenerator",
-        "NamedVariableDefinitionGenerator"
+        "NamedVariableDefinitionGenerator",
+        // We disallow all kinds of builtins as many builtins accept functions as inputs,
+        // this typically leads us to generate programs that can cause stack overflow (SOF).
+        // We do not prefer such programs as such SOF behaviors are not consistent across
+        // different engines (the size/depth of the stack is indeed engine specific). Yet,
+        // disallowing all of these is too conservative to miss some potential bugs. Hence,
+        // TODO: We may have to strike a good balance between builtins and first-class funcs.
+        "BuiltinGenerator",
+        "BuiltinObjectInstanceGenerator",
+        "CallbackPropertyGenerator",
+        "PrototypeAccessGenerator",
+        "PrototypeOverwriteGenerator",
+        "WellKnownPropertyLoadGenerator",
+        "WellKnownPropertyStoreGenerator",
+        "MethodCallWithDifferentThisGenerator",
+        "ConstructWithDifferentNewTargetGenerator",
+        "ProxyGenerator",
+        "PromiseGenerator",
+        "TypedArrayGenerator",
+        "ResizableArrayBufferGenerator",
+        "GrowableSharedArrayBufferGenerator",
+        "NumberComputationGenerator",
+        // Some interestring generators that might (or might not) stable?
+        // "IteratorGenerator",
+        // "EvalGenerator",
+        // "ImitationGenerator"
     ])
 }
 let additionalCodeGenerators = profile.additionalCodeGenerators
