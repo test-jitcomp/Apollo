@@ -78,7 +78,7 @@ public class InsertChksumOpMutator: Mutator {
             return program // No LoadNamedVariable(chksumContainer)s at all.
         }
 
-        let b = fuzzer.makeBuilder()
+        let b = fuzzer.makeBuilder(forMutating: program)
 
         b.adopting(from: program) {
             for instr in program.code {
@@ -122,12 +122,14 @@ public class InsertChksumOpMutator: Mutator {
         let loadInstrIndices = program.code.indices.filter {
             isLoadChksumContainer(program.code[$0])
         }
-        guard loadInstrIndices.count > 0 && loadInstrIndices[0] == 0 else {
-            return program // Either no additional LoadNamedVariable(chksumContainer)s,
-            // or the program is not from us. In either case, we directly return.
+        guard loadInstrIndices.count > 1 && loadInstrIndices[0] == 0 else {
+            return program // Either no additional LoadNamedVariable(chksumContainer)s (count == 0),
+            // or the program is not from us ([0] != 0),
+            // or the program only from us (count == 1 && [0] == 0).
+            // In either cases, we directly return.
         }
 
-        let b = fuzzer.makeBuilder()
+        let b = fuzzer.makeBuilder(forMutating: program)
 
         // We keep only the very first one and replace all others
         b.adopting(from: program) {

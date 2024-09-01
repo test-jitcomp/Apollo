@@ -34,7 +34,7 @@ extension ProgramBuilder {
     ///
     /// Let's embed the neutral loop into a brand new, small program which has no
     /// connections to the program under mutation
-    public func randomNeutralLoop(n: Int = 10, forMutating program: Program) -> Program {
+    public func randomNeutralLoop(n: Int = 10, forMutating program: Program? = nil) -> Program {
         // We create a new program to avoid any connections to program
         return randomProgram(forMutating: program) { b in
             // We wrap by a try-catch to dismiss any possible exceptions
@@ -70,7 +70,7 @@ public class PlainInsNeuLoopMutator: JITMutator {
 
     override func mutate(_ i: Instruction, _ b: ProgramBuilder) {
         b.adopt(i)
-        b.append(b.randomNeutralLoop(forMutating: mutatingProgram))
+        b.append(b.randomNeutralLoop())
     }
 }
 
@@ -175,7 +175,7 @@ public class InsNeuLoopForJITMutator: JoNMutator {
         for (index, instr) in subrt.enumerated() {
             b.adopt(instr)
             if index == insertAt {
-                b.append(b.randomNeutralLoop(forMutating: mutatingProgram))
+                b.append(b.randomNeutralLoop())
             }
         }
     }
@@ -269,7 +269,7 @@ public class WrapInstrForJITMutator: JoNMutator {
                 b.buildTryCatchFinally(tryBody: {
                     b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
                         // Append a brand new program so that it has no connections to us
-                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize, forMutating: mutatingProgram))
+                        b.append(b.randomProgram(n: defaultSmallCodeBlockSize))
                         // Check if instr has ben executed in prior iterations and skip
                         // its execution if already; otherwise, execute it and set the flag
                         let flag = b.getElement(0, of: container)
