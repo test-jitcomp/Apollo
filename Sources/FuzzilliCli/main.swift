@@ -499,9 +499,9 @@ func makeFuzzer(with configuration: Configuration) -> Fuzzer {
         engine = HybrjdonEngine(
             numConsecutiveMutations: consecutiveMutations,
             numConsecutiveJenerations: consecutiveMutations,
-            weightMutation: 2,
-            weightJeneration: 2,
-            weightJoNMutation: 6
+            weightMutation: 3,
+            weightJeneration: 3,
+            weightJoNMutation: 4
         )
     default:
         engine = MutationEngine(numConsecutiveMutations: consecutiveMutations)
