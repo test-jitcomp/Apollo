@@ -90,10 +90,10 @@ index 3c321c96..14cace04 100644
    int return_code = JERRY_STANDALONE_EXIT_CODE_FAIL;
 diff --git a/jerry-main/main-fuzzilli.c b/jerry-main/main-fuzzilli.c
 new file mode 100644
-index 00000000..c28660b9
+index 00000000..c7021986
 --- /dev/null
 +++ b/jerry-main/main-fuzzilli.c
-@@ -0,0 +1,329 @@
+@@ -0,0 +1,333 @@
 +#include "main-fuzzilli.h"
 +
 +#include <assert.h>
@@ -410,6 +410,10 @@ index 00000000..c28660b9
 +        jerryx_print_unhandled_exception(ret_value);
 +      }
 +    }
++
++    // Flush unwriteen data to avoid caching
++    fflush(stdout);
++    fflush(stderr);
 +
 +    jerry_cleanup();
 +
