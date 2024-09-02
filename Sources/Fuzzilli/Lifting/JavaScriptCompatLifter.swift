@@ -69,7 +69,11 @@ public class JavaScriptCompatLifter: JavaScriptLifter {
         // Print the checksum as an indicator of the program.
         // This may be helpful for differential testing.
         //
-        \(printFuncName)(`Checksum: ${\(chksumContainerName)[\(chksumIndexInContainer)]}`);
+        // WARNING:
+        // - Do NOT use template strings which Duktape does not support.
+        //   See: https://github.com/svaarala/duktape/issues/273
+        //
+        \(printFuncName)("Checksum: " + \(chksumContainerName)[\(chksumIndexInContainer)]);
     }
     })(globalThis || global);
     """
