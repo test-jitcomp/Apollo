@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 5bafc73..e926877 100644
+index 5bafc73..4f3292c 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -37,7 +37,7 @@
@@ -20,12 +20,22 @@ index 5bafc73..e926877 100644
  PYTHON := $(PYTHON)
  DOCKER ?= docker
  DOCKER := $(DOCKER)
+@@ -493,7 +493,8 @@ build/duk-perf-clang: $(DUK_SOURCE_DEPS) | build prep/nondebug-perf
+ 
+ build/duk-fuzzilli: $(DUK_SOURCE_DEPS) | build prep/fuzz
+ 	# Target for fuzzilli.  Adds in the appropriate debug flags, without doing the debug prints.
+-	$(CLANG) -O3 -o $@ $(CLANG_CCOPTS_DEBUG) -Wall -Wextra -Wcast-align -Wshift-sign-overflow -fsanitize=undefined -fsanitize-coverage=trace-pc-guard -Iprep/fuzz prep/fuzz/duktape.c $(DUKTAPE_CMDLINE_SOURCES) $(LINENOISE_SOURCES) $(CCLIBS)
++  # $(CLANG) -O3 -o $@ $(CLANG_CCOPTS_DEBUG) -Wall -Wextra -Wcast-align -Wshift-sign-overflow -fsanitize=undefined -fsanitize-coverage=trace-pc-guard -Iprep/fuzz prep/fuzz/duktape.c $(DUKTAPE_CMDLINE_SOURCES) $(LINENOISE_SOURCES) $(CCLIBS)
++	$(CLANG) -O3 -o $@ $(CLANG_CCOPTS_DEBUG) -Wall -Wextra -Wcast-align -Wshift-sign-overflow -fsanitize-coverage=trace-pc-guard -Iprep/fuzz prep/fuzz/duktape.c $(DUKTAPE_CMDLINE_SOURCES) $(LINENOISE_SOURCES) $(CCLIBS)
+ 
+ build/duk-g++: $(DUK_SOURCE_DEPS) | build prep/nondebug
+ 	$(GXX) -o $@ -Iprep/nondebug $(GXXOPTS_NONDEBUG) prep/nondebug/duktape.c $(DUKTAPE_CMDLINE_SOURCES) $(CCLIBS)
 diff --git a/tools/configure.py b/tools/configure.py
-index 88fb6981..7524e664 100644
+index 88fb698..7524e66 100644
 --- a/tools/configure.py
 +++ b/tools/configure.py
 @@ -14,18 +14,18 @@ import tempfile
-
+ 
  def detect_nodejs():
      try:
 -        cmd = [ 'nodejs', '-e', 'console.log("test")' ]
@@ -36,7 +46,7 @@ index 88fb6981..7524e664 100644
 +            return 'node'
      except:
          pass
-
+ 
      try:
 -        cmd = [ 'node', '-e', 'console.log("test")' ]
 +        cmd = [ 'nodejs', '-e', 'console.log("test")' ]
@@ -46,4 +56,4 @@ index 88fb6981..7524e664 100644
 +            return 'nodejs'
      except:
          pass
-
+ 
