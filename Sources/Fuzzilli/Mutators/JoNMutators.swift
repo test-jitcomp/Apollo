@@ -248,6 +248,9 @@ public class WrapInstrForJITMutator: JoNMutator {
             !(subrt[$0].op is GetProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
             !(subrt[$0].op is SetProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
             !(subrt[$0].op is UpdateProperty) && // We prefer not to wrapping property updater; they ain't aways atomc
+            !(subrt[$0].op is GetComputedProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
+            !(subrt[$0].op is SetComputedProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
+            !(subrt[$0].op is UpdateComputedProperty) && // We prefer not to wrapping property updater; they ain't aways atomc
             !(subrt[$0].op is GetPrivateProperty) && // We prefer not to wrapping property getter; they ain't aways atomc
             !(subrt[$0].op is SetPrivateProperty) && // We prefer not to wrapping property setter; they ain't aways atomc
             !(subrt[$0].op is UpdatePrivateProperty) && // We prefer not to wrapping property updater; they ain't aways atomc
