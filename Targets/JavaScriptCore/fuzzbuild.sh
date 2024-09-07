@@ -17,7 +17,8 @@
 export WEBKIT_OUTPUTDIR=FuzzBuild
 
 if [ "$(uname)" == "Linux" ]; then
-    ./Tools/Scripts/build-jsc --jsc-only --debug --fuzzilli --cmakeargs="-DCMAKE_C_COMPILER='/usr/bin/clang' -DCMAKE_CXX_COMPILER='/usr/bin/clang++' -DCMAKE_CXX_FLAGS='-O3 -lrt'"
+    ./Tools/Scripts/set-webkit-configuration --debug --fuzzilli
+    ./Tools/Scripts/build-jsc --jsc-only --debug --cmakeargs="-DCMAKE_C_COMPILER='/usr/bin/clang' -DCMAKE_CXX_COMPILER='/usr/bin/clang++' -DCMAKE_CXX_FLAGS='-O3 -lrt'"
 else
     echo "Unsupported operating system"
 fi

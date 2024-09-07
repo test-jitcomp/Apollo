@@ -1,0 +1,94 @@
+diff --git a/Source/JavaScriptCore/Sources.txt b/Source/JavaScriptCore/Sources.txt
+index aec924c93adf..51ae4f0c254c 100644
+--- a/Source/JavaScriptCore/Sources.txt
++++ b/Source/JavaScriptCore/Sources.txt
+@@ -525,6 +525,9 @@ ftl/FTLState.cpp
+ ftl/FTLThunks.cpp
+ ftl/FTLValueRange.cpp
+
++// FIXME: Compile fuzzilli conditionally
++fuzzilli/Fuzzilli.cpp
++
+ heap/AlignedMemoryAllocator.cpp
+ heap/Allocator.cpp
+ heap/BlockDirectory.cpp
+diff --git a/Source/JavaScriptCore/fuzzilli/Fuzzilli.cpp b/Source/JavaScriptCore/fuzzilli/Fuzzilli.cpp
+index f17d1b43b605..37d20a12ac8a 100644
+--- a/Source/JavaScriptCore/fuzzilli/Fuzzilli.cpp
++++ b/Source/JavaScriptCore/fuzzilli/Fuzzilli.cpp
+@@ -21,7 +21,10 @@
+ #include "config.h"
+ #include "Fuzzilli.h"
+
++#include <fcntl.h>
+ #include <mutex>
++#include <sys/mman.h>
++#include <sys/stat.h>
+ #include <wtf/Assertions.h>
+ #include <wtf/Compiler.h>
+ #include <wtf/DataLog.h>
+diff --git a/Source/cmake/WebKitCompilerFlags.cmake b/Source/cmake/WebKitCompilerFlags.cmake
+index b84d6fa3eed4..93d26d05e718 100644
+--- a/Source/cmake/WebKitCompilerFlags.cmake
++++ b/Source/cmake/WebKitCompilerFlags.cmake
+@@ -296,6 +296,10 @@ if (COMPILER_IS_GCC_OR_CLANG)
+                 set(SANITIZER_COMPILER_FLAGS "-fsanitize=leak ${SANITIZER_COMPILER_FLAGS}")
+                 set(SANITIZER_LINK_FLAGS "-fsanitize=leak ${SANITIZER_LINK_FLAGS}")
+
++            elseif (${SANITIZER} MATCHES "fuzzilli" AND COMPILER_IS_CLANG AND NOT MSVC)
++                set(SANITIZER_COMPILER_FLAGS "-fsanitize-coverage=trace-pc-guard -DENABLE_FUZZILLI=1 ${SANITIZER_COMPILER_FLAGS}")
++                set(SANITIZER_LINK_FLAGS "-fsanitize-coverage=trace-pc-guard ${SANITIZER_LINK_FLAGS}")
++
+             else ()
+                 message(FATAL_ERROR "Unsupported sanitizer: ${SANITIZER}")
+             endif ()
+diff --git a/Tools/Scripts/webkitdirs.pm b/Tools/Scripts/webkitdirs.pm
+index 8535e72996c8..8dc3cf45923b 100755
+--- a/Tools/Scripts/webkitdirs.pm
++++ b/Tools/Scripts/webkitdirs.pm
+@@ -734,24 +734,14 @@ sub determineCoverageIsEnabled
+ {
+     return if defined $coverageIsEnabled;
+     determineBaseProductDir();
+-
+-    if (open Coverage, "$baseProductDir/Coverage") {
+-        $coverageIsEnabled = <Coverage>;
+-        close Coverage;
+-        chomp $coverageIsEnabled;
+-    }
++    $coverageIsEnabled = readSanitizerConfiguration("Coverage");
+ }
+
+ sub determineFuzzilliIsEnabled
+ {
+     return if defined $fuzzilliIsEnabled;
+     determineBaseProductDir();
+-
+-    if (open Fuzzilli, "$baseProductDir/Fuzzilli") {
+-        $fuzzilliIsEnabled = <Fuzzilli>;
+-        close Fuzzilli;
+-        chomp $fuzzilliIsEnabled;
+-    }
++    $fuzzilliIsEnabled = readSanitizerConfiguration("Fuzzilli");
+ }
+
+ sub determineLTOMode
+@@ -2797,12 +2787,17 @@ sub generateBuildSystemFromCMakeProject
+         push @args, "-DCMAKE_BUILD_TYPE=Debug";
+     }
+
++    # The following checks require us to be in the parent directory of the build dir
++    chdir(dirname(getcwd())) or die;
+     push @args, "-DENABLE_SANITIZERS=address" if asanIsEnabled();
+     push @args, "-DENABLE_SANITIZERS=thread" if tsanIsEnabled();
+     push @args, "-DENABLE_SANITIZERS=undefined" if ubsanIsEnabled();
+-    push @args, "-DENABLE_SANITIZERS=fuzzer" if libFuzzerIsEnabled();
++    push @args, "-DENABLE_SANITIZERS=fuzzilli" if fuzzilliIsEnabled();
++    push @args, "-DENABLE_STATIC_JSC=ON" if fuzzilliIsEnabled();
++    push @args, "-DENABLE_SANITIZERS=fuzzer" if !fuzzilliIsEnabled() && libFuzzerIsEnabled();
+
+     push @args, "-DLTO_MODE=$ltoMode" if ltoMode();
++    chdir($buildPath) or die;  # Return back to the build directory
+
+     if (isPlayStation()) {
+         my $toolChainFile = $ENV{'CMAKE_TOOLCHAIN_FILE'} || "Platform/PlayStation5";

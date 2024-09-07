@@ -16,7 +16,7 @@ docker build --build-arg rev=$REV -t jsc_builder .
 # Copy build products
 mkdir -p out
 docker create --name temp_container jsc_builder
-docker cp temp_container:/home/builder/webkit/FuzzBuild/Debug/bin/jsc out/jsc
+docker cp temp_container:/home/builder/webkit/FuzzBuild/bin/jsc out/jsc
 docker rm temp_container
 
 # Clean up
