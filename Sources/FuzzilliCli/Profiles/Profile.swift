@@ -40,6 +40,10 @@ struct Profile {
     let optionalPostProcessor: FuzzingPostProcessor?
 }
 
+// TODO: Tune JIT options according to different fuzz engines especially for JoNM-series engines
+// - Set thresholds for JITs to their default value
+// - Set enable/disable specific JIT optimizations
+// - Remove randomness in setting CLI options
 let profiles = [
     "qtjs": qtjsProfile,
     "qjs": qjsProfile,
