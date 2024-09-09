@@ -61,9 +61,8 @@ public class JoNMutEngine: FuzzEngine {
         }
 
         // Execute the seed program and obtain its input as our referee
-        let seedExec = execute0(seed, withCaching: true)
-        if seedExec.outcome != .succeeded {
-            return // We accidentally picked an interesting program
+        guard let seedExec = determExecute(seed, n: 3) else {
+            return // The seed we've picked is either interesting or flaky
         }
 
         // Perform a sequence of JoN mutations and check their results
@@ -114,6 +113,32 @@ public class JoNMutEngine: FuzzEngine {
                 mutant.contributors.generatedMiscompilingSample()
             }
         }
+    }
+
+    /// Run a program multiple times to check if the program's execution is deterministic.
+    ///
+    /// This is often a required action before we perform JoN mutations as the seed programs generated
+    /// by Fuzzilli are quite likely to cause the JavaScript engine stack overflow,rendering the program output
+    /// quite flaky, even through the flaky seed is not a bug trigger :-).
+    private func determExecute(_ program: Program, n: Int) -> Execution? {
+        // Let run it for 5 times and check if the execution is deterministic
+        let ref = execute0(program, withCaching: true)
+        if ref.outcome != .succeeded {
+            return nil // We accidentally picked an interesting program
+        }
+
+        // Run for a couple of rounds to check if it is deterministic
+        for _  in 1..<n {
+            let cur = execute0(program, withCaching: true)
+            if cur.outcome != .succeeded {
+                return nil // Interesting flaky tests: the outcome changed; not deterministic
+            } else if cur.stdout != ref.stdout {
+                return nil // The stdout changed; it's not deterministic but might not be a bug
+                // as we often generate tests that causes the JavaScript engine stack overflow.
+            }
+        }
+
+        return ref // Return the deterministic result
     }
 
     /// Pre-processing of programs to facilitate JoN mutations on them.
