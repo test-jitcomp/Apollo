@@ -28,6 +28,9 @@ public class JoNMutEngine: FuzzEngine {
     // The mutator, working as a backup, helps add a neutral loop into the program
     private let neuLoopInserter = PlainInsNeuLoopMutator()
 
+    // The mutator, working as another backup, helps wraps a program by a function and calls it by a loop
+    private let fuzzJitMutator = PlainFuzzJITMutator()
+
     public init(numConsecutiveMutations: Int) {
         self.numConsecutiveMutations = numConsecutiveMutations
 
@@ -75,7 +78,7 @@ public class JoNMutEngine: FuzzEngine {
                 if i == maxAttempts {
                     // We failed too many times.
                     // Fallback to the simple mutator.
-                    mutator = neuLoopInserter
+                    mutator = withEqualProbability({self.neuLoopInserter}, {self.fuzzJitMutator})
                 }
                 if let result = mutator.mutate(seed, for: fuzzer) {
                     // Success!

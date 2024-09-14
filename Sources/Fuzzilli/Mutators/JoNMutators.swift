@@ -74,6 +74,83 @@ public class PlainInsNeuLoopMutator: JITMutator {
     }
 }
 
+/// A simple JIT mutator that wraps the entire program by a loop. This resembles to the one used by Security'23 FuzzJIT.
+public class PlainFuzzJITMutator: Mutator {
+
+    override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
+        precondition(
+            program.contributors.contains(where: {i in i is InsertChksumOpMutator }),
+            "No InsertChksumOpMutator found in the program's contribution; cannot peroform this mutator."
+        )
+
+        let chksumIndex = Int64(JavaScriptCompatLifter.chksumIndexInContainer)
+        let counterIndex = Int64(JavaScriptCompatLifter.chksumCounterIndexInContainer)
+        
+        b.beginAdoption(from: program)
+
+        b.adopt(program.code[0])
+        let v0: Variable = b.adopt(program.code[0].output)
+
+        // Wrap the whole program into a function which returns the chksum
+        let opt = b.buildPlainFunction(with: .parameters(n: 1)) { args in
+            var contextAnalyzer = ContextAnalyzer()
+            var inserted = false
+            // Reset the chksum and its counter before running the function
+            b.setElement(chksumIndex, of: v0, to: b.loadInt(0xAB0110))
+            b.setElement(counterIndex, of: v0, to: b.createObject(with: [:]))
+            for instr in program.code[1..<program.size] {
+                b.adopt(instr)
+                contextAnalyzer.analyze(instr)
+                if !inserted && contextAnalyzer.context.contains(.javascript) && b.randomFloat() < 0.25 {
+                    b.buildIf(args[0]) {
+                        b.append(b.randomProgram())
+                    }
+                    inserted = true
+                }
+            }
+            if !inserted {
+                b.buildIf(args[0]) {
+                    b.append(b.randomProgram())
+                }
+            }
+            b.doReturn(b.getElement(chksumIndex, of: v0))  // Return the chksum variable as our output for the function opt
+        }
+
+        // Call opt 5 times to check if the results are stable
+        let p1 = b.callFunction(opt, withArgs: [b.loadBool(false)])
+        b.buildRepeatLoop(n: 5) {
+            b.callFunction(opt, withArgs: [b.loadBool(true)])
+        }
+        let p2 = b.callFunction(opt, withArgs: [b.loadBool(false)])
+
+        // Check the stability of the seed program's program output
+        b.buildIfElse(b.compare(p1, with: p2, using: .notEqual), ifBody: {
+            // The value of p2 is different from p1 (the output of the seed program). This typically mean the seed program is
+            // not stable, as we only run for 5 times. Let's reset the chksum to that of the seed program to indicate no errors.
+            b.setElement(chksumIndex, of: v0, to: p1)
+        }, elseBody: {
+            // Call opt N times to check if the results are consistent
+            let r1 = b.callFunction(opt, withArgs: [b.loadBool(false)])
+            b.buildRepeatLoop(n: defaultMaxLoopTripCountInJIT) {
+                b.callFunction(opt, withArgs: [b.loadBool(true)]) // Trigger JIT compilation
+            }
+            let r2 = b.callFunction(opt, withArgs: [b.loadBool(false)]) // Trigger de-optimization
+            // Check the consistency of the seed program and the mutant
+            b.buildIfElse(b.compare(r1, with: r2, using: .notEqual), ifBody: {
+                // The value of r2 is different from r1 (the output of the seed program). This typically means a miscompilation.
+                b.setElement(chksumIndex, of: v0, to: r2)
+            }, elseBody: {
+                // The value of r2 is the same as r1 (the output of the seed program). This typically means nothing.
+                b.setElement(chksumIndex, of: v0, to: r1)
+            })
+        })
+
+        b.endAdoption()
+
+        return b.finalize()
+    }
+}
+
 /// A JoN mutator is basically a subroutine mutator which performs JoN mutations  on subroutines
 public class JoNMutator: BaseSubroutineMutator {
     let canBeInLoop: Bool
