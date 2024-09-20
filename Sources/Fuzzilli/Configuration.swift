@@ -43,6 +43,9 @@ public struct Configuration {
     /// other as it forces them to (re)discover edges in a different way.
     public let dropoutRate: Double
 
+    /// Enable the generation of recursive function calls; this may induce RangeError that drain the stack out
+    public let enableRecursionGeneration: Bool
+
     /// Enable the saving of programs that failed or timed-out during execution.
     public let enableDiagnostics: Bool
 
@@ -69,6 +72,7 @@ public struct Configuration {
                 minimizationLimit: Double = 0.0,
                 dropoutRate: Double = 0,
                 collectRuntimeTypes: Bool = false,
+                enableRecursionGeneration: Bool = false,
                 enableDiagnostics: Bool = false,
                 enableInspection: Bool = false,
                 staticCorpus: Bool = false,
@@ -81,6 +85,7 @@ public struct Configuration {
         self.minimizationLimit = minimizationLimit
         self.enableDiagnostics = enableDiagnostics
         self.enableInspection = enableInspection
+        self.enableRecursionGeneration = enableRecursionGeneration
         self.staticCorpus = staticCorpus
         self.tag = tag
     }

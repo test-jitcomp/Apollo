@@ -681,7 +681,7 @@ public class Fuzzer {
         dispatchPrecondition(condition: .onQueue(queue))
         // Program ancestor chains are only constructed if inspection mode is enabled
         let parent = config.enableInspection ? parent : nil
-        return ProgramBuilder(for: self, parent: parent)
+        return ProgramBuilder(for: self, parent: parent, enableRecursionGuard: !config.enableRecursionGeneration)
     }
 
     /// Performs one round of fuzzing.

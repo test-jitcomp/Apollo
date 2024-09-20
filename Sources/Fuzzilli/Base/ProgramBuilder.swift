@@ -65,7 +65,7 @@ public class ProgramBuilder {
     ///
     /// From being generated, which can happen quite frequently during prefix generation as
     /// the number of visible variables may be quite small.
-    public let enableRecursionGuard = true
+    public let enableRecursionGuard: Bool
 
     /// Counter to quickly determine the next free variable.
     private var numVariables = 0
@@ -149,10 +149,11 @@ public class ProgramBuilder {
     }
 
     /// Constructs a new program builder for the given fuzzer.
-    init(for fuzzer: Fuzzer, parent: Program?) {
+    init(for fuzzer: Fuzzer, parent: Program?, enableRecursionGuard: Bool) {
         self.fuzzer = fuzzer
         self.jsTyper = JSTyper(for: fuzzer.environment)
         self.parent = parent
+        self.enableRecursionGuard = enableRecursionGuard
     }
 
     /// Resets this builder.

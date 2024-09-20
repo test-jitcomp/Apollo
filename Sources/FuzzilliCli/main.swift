@@ -101,6 +101,9 @@ Options:
     --compatLifting              : Inject some surrounding context (e.g., global) when liftinng FuzzIL programs to JavaScript.
                                    This, in addition to Profiles, provides flexibility to inject code in order to make compatibility between JavaScript engines.
                                    This is by default disabled for all fuzz engines except for jonmut.
+    --enableRecursionGeneration  : Enable the generation of recursive function calls. Generating recursive function call is better for finding crashes,
+                                   while it may introduce unexpected behaviors for finding miscompilations.
+                                   This option is automatically unset when the fuzz engine is within JoNM series.
 """)
     exit(0)
 }
@@ -157,6 +160,7 @@ let argumentRandomization = args.has("--argumentRandomization")
 let additionalArguments = args["--additionalArguments"] ?? ""
 let tag = args["--tag"]
 var compatLifting = args.has("--compatLifting")
+var enableRecursionGeneration = args.has("--enableRecursionGeneration")
 
 guard numJobs >= 1 else {
     configError("Must have at least 1 job")
@@ -185,6 +189,7 @@ guard validEngines.contains(engineName) else {
 let jonmEngines = ["jonmut", "hybrjdon"]
 let isJonmSeriesEngine = jonmEngines.contains(engineName)
 compatLifting = isJonmSeriesEngine || compatLifting
+enableRecursionGeneration = !isJonmSeriesEngine && enableRecursionGeneration
 
 let validCorpora = ["basic", "markov"]
 guard validCorpora.contains(corpusName) else {
@@ -587,6 +592,7 @@ let mainConfig = Configuration(arguments: CommandLine.arguments,
                                logLevel: logLevel,
                                startupTests: profile.startupTests,
                                minimizationLimit: minimizationLimit,
+                               enableRecursionGeneration: enableRecursionGeneration,
                                enableDiagnostics: diagnostics,
                                enableInspection: inspect,
                                staticCorpus: staticCorpus,
