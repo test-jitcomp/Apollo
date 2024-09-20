@@ -18,6 +18,19 @@ import Foundation
 
 extension Code {
 
+    /// Finds the class definition (i.e., BeginClassDefinition) for an instruction
+    public func findClassDefinition(for instr: Instruction) -> Instruction {
+        var index = instr.index
+        while index >= 0 {
+            let curr = self[index]
+            if curr.isBlockStart && curr.op is BeginClassDefinition {
+                return curr
+            }
+            index -= 1
+        }
+        fatalError("Cannot reach here")
+    }
+
     /// Finds the subroutine definition (i.e., BeginAnySubroutine) for an instruction
     public func findSubrtineDefinition(for instr: Instruction) -> Instruction {
         var index = instr.index
