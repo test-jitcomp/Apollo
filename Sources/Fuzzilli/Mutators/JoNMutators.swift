@@ -77,6 +77,7 @@ public class PlainInsNeuLoopMutator: JITMutator {
 /// A simple JIT mutator that wraps the entire program by a loop. This resembles to the one used by Security'23 FuzzJIT.
 public class PlainFuzzJITMutator: Mutator {
 
+    // TODO: This mutator is too close to the details of chksum implementations. Consider either moving this mutator to elsewhere like besides InsertChksumOpMutator or refactoring this mutator by hiding all the details.
     override func mutate(_ program: Program, using b: ProgramBuilder, for fuzzer: Fuzzer) -> Program? {
         precondition(
             program.contributors.contains(where: {i in i is InsertChksumOpMutator }),
@@ -85,15 +86,22 @@ public class PlainFuzzJITMutator: Mutator {
 
         let chksumIndex = Int64(JavaScriptCompatLifter.chksumIndexInContainer)
         let counterIndex = Int64(JavaScriptCompatLifter.chksumCounterIndexInContainer)
-        
+        var contextAnalyzer = ContextAnalyzer()
+
         b.beginAdoption(from: program)
 
         b.adopt(program.code[0])
+        contextAnalyzer.analyze(program.code[0])
+        guard contextAnalyzer.context.contains(.javascript) else {
+            return nil  // As we are generating a function, we require such an environment.
+            // This should typically satisfy as the first should be LoadNmaedVariable from InsertChksumOpMutator.
+            // TODO: However, there're cases that this does not hold. Check why.
+        }
+
         let v0: Variable = b.adopt(program.code[0].output)
 
         // Wrap the whole program into a function which returns the chksum
         let opt = b.buildPlainFunction(with: .parameters(n: 1)) { args in
-            var contextAnalyzer = ContextAnalyzer()
             var inserted = false
             // Reset the chksum and its counter before running the function
             b.setElement(chksumIndex, of: v0, to: b.loadInt(0xAB0110))
