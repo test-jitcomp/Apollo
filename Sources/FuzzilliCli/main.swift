@@ -32,6 +32,8 @@ Options:
     --jobs=n                     : Total number of fuzzing jobs. This will start a main instance and n-1 worker instances.
     --engine=name                : The fuzzing engine to use. Available engines: "jitmut" (default), "jonmut", "mutation", "hybrid", "multi", "hybrjdon".
                                    Only the mutation engine should be regarded stable at this point.
+                                   JoNM-series engines, including "jonmut" and "hybrjdon" at present, follow JIT-op Neutral Mutation (of Compilation Space
+                                   Exploration) to find mis-compilation bugs in JavaScript engines.
     --corpus=name                : The corpus scheduler to use. Available schedulers: "basic" (default), "markov"
     --logLevel=level             : The log level to use. Valid values: "verbose", "info", "warning", "error", "fatal" (default: "info").
     --maxIterations=n            : Run for the specified number of iterations (default: unlimited).
@@ -104,6 +106,9 @@ Options:
     --enableRecursionGeneration  : Enable the generation of recursive function calls. Generating recursive function call is better for finding crashes,
                                    while it may introduce unexpected behaviors for finding miscompilations.
                                    This option is automatically unset when the fuzz engine is within JoNM series.
+    --disableUndetermGenerators  : Disable the code generators that are perhaps introducing undeterministic behaviors, such as those generators generating
+                                   functions or methods taking other functions/methods as inputs, generators that generate unlimited arrays, etc.
+                                   This option is only valid for JoNM-series fuzz engines for finding mis-compilations.
 """)
     exit(0)
 }
@@ -161,6 +166,7 @@ let additionalArguments = args["--additionalArguments"] ?? ""
 let tag = args["--tag"]
 var compatLifting = args.has("--compatLifting")
 var enableRecursionGeneration = args.has("--enableRecursionGeneration")
+let disableUndetermGenerators = args.has("disableUndetermGenerators")
 
 guard numJobs >= 1 else {
     configError("Must have at least 1 job")
@@ -322,7 +328,7 @@ if swarmTesting {
 }
 
 var disabledGenerators = Set(profile.disabledCodeGenerators)
-if isJonmSeriesEngine {
+if isJonmSeriesEngine && disableUndetermGenerators {
     // All JoNM engines requests for stable chksum outputs. So let's
     // remove as many generators as possible as long as they are
     // likely to generate unstable code like unrecognized regexes,
