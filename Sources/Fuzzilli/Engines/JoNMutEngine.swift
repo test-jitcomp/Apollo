@@ -120,9 +120,9 @@ public class JoNMutEngine: FuzzEngine {
 
     /// Pre-processing of programs to facilitate JoN mutations on them.
     private func preprocess(_ program: Program) -> Program? {
-        if program.contributors.contains(chksumOpInserter) {
-            return program // We have already added a checksum; avoid redoing.
-        }
+        // All interesting programs that have been added to the corpus are being minimized.
+        // There're quite a few chances that our chksums are eliminated. Thus, we will always
+        // be adding some new chksum updating operations for each seed program.
         return chksumOpInserter.mutate(
             chksumOpInserter.preprocess(program, for: fuzzer), for: fuzzer
         )
