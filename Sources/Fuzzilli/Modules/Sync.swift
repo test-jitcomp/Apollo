@@ -560,7 +560,7 @@ public class DistributedFuzzingChildNode: DistributedFuzzingNode, Module {
     }
 
     private func sendProgram(_ program: Program, as type: MessageType) {
-        assert(type == .interestingProgram || type == .crashingProgram)
+        assert(type == .interestingProgram || type == .crashingProgram || type == .miscompilingProgram || type == .miscompilingReferee)
         let proto = program.asProtobuf()
         guard let payload = try? proto.serializedData() else {
             return logger.error("Failed to serialize program")
