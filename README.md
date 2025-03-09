@@ -1,5 +1,3 @@
-# Apollo
-
 <p align="center">
     <img width="320" alt="logo" align="center" src=".github/apollo.png">
 </p>
