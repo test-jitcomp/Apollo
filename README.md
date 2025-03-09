@@ -89,3 +89,9 @@ Please consider citing us if you used Apollo in your work!
 ```
 Apache License Version 2.0
 ```
+
+
+## 🤝 Acknowledgements
+
+1. Fuzzilli (on which this project is based)
+2. Tiana Xing (who sketches the logo)
