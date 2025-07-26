@@ -74,10 +74,11 @@ Please consider citing us if you used Apollo in your work!
 @article{csx_tocs25,
   author = {Li, Cong and Jiang, Yanyan and Xu, Chang and Su, Zhendong},
   title = {Validating JIT Compilers via Compilation Space Exploration},
-  year = {2025},
-  note = {Just Accepted},
   journal = {ACM Trans. Comput. Syst.},
-  month = feb
+  year = {2025},
+  volume = {43},
+  number = {3},
+  articleno = {6}
 }
 ```
 
